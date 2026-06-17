@@ -11,5 +11,6 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
     List<Deck> findByType(DeckType type);
     Optional<Deck> findByNameAndType(String name, DeckType type);
     List<Deck> findByUserId(Long userId);
+    long countByUserId(Long userId);
     Optional<Deck> findByUserIdAndNameAndType(Long userId, String name, DeckType type);
 }

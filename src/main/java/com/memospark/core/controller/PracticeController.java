@@ -1,15 +1,17 @@
 package com.memospark.core.controller;
 
+import com.memospark.core.config.CurrentUser;
+import com.memospark.core.config.UserPrincipal;
 import com.memospark.core.dto.*;
 import com.memospark.core.service.AiService;
+import com.memospark.core.service.JudgeOrchestrator;
 import com.memospark.core.service.ProblemNoteService;
 import com.memospark.core.service.ProblemService;
-import com.memospark.core.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -22,33 +24,34 @@ public class PracticeController {
     private final ProblemService problemService;
     private final ProblemNoteService noteService;
     private final AiService aiService;
-    private final UserService userService;
+    private final JudgeOrchestrator judgeOrchestrator;
 
     @GetMapping("/problems")
-    public List<CodeProblemDto> getAllProblems(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return problemService.getAllProblems(userId);
+    public List<ProblemSummaryDto> getAllProblems(@CurrentUser UserPrincipal principal) {
+        return problemService.getAllProblemsSummary(principal != null ? principal.id() : null);
     }
 
     @GetMapping("/problems/{id}")
-    public CodeProblemDto getProblem(@PathVariable Long id,
-                                     @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return problemService.getProblem(id, userId);
+    public CodeProblemDto getProblem(@PathVariable Long id, @CurrentUser UserPrincipal principal) {
+        return problemService.getProblem(id, principal != null ? principal.id() : null);
     }
 
     @PostMapping("/problems/{id}/submit")
-    public CodeSubmitResultDto submit(@PathVariable Long id, @RequestBody CodeSubmitRequest req,
-                                      @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return problemService.submit(id, req, userId);
+    public Map<String, Long> submitAsync(@PathVariable Long id, @RequestBody CodeSubmitRequest req,
+                                         @CurrentUser UserPrincipal principal) throws Exception {
+        Long submissionId = judgeOrchestrator.submitAsync(id, req, principal.id()).get();
+        return Map.of("submissionId", submissionId);
+    }
+
+    @GetMapping(value = "/submissions/{submissionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamSubmission(@PathVariable Long submissionId) {
+        return judgeOrchestrator.subscribe(submissionId);
     }
 
     @GetMapping("/problems/{id}/submissions")
     public List<CodeSubmissionDto> getSubmissions(@PathVariable Long id,
-                                                   @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return problemService.getSubmissions(id, userId);
+                                                   @CurrentUser UserPrincipal principal) {
+        return problemService.getSubmissions(id, principal.id());
     }
 
     // ── Admin CRUD ──
@@ -75,38 +78,33 @@ public class PracticeController {
     @GetMapping("/notebook")
     public List<ProblemNoteDto> getNotebook(
             @RequestParam(required = false) String type,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
+            @CurrentUser UserPrincipal principal) {
         if (type != null && !type.isBlank()) {
-            return noteService.getNotesByType(userId, type);
+            return noteService.getNotesByType(principal.id(), type);
         }
-        return noteService.getAllNotes(userId);
+        return noteService.getAllNotes(principal.id());
     }
 
     @GetMapping("/notebook/summary")
-    public Map<String, Object> getNotebookSummary(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.getSummary(userId);
+    public Map<String, Object> getNotebookSummary(@CurrentUser UserPrincipal principal) {
+        return noteService.getSummary(principal.id());
     }
 
     @GetMapping("/notebook/due")
-    public List<ProblemNoteDto> getDueNotes(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.getDueNotes(userId);
+    public List<ProblemNoteDto> getDueNotes(@CurrentUser UserPrincipal principal) {
+        return noteService.getDueNotes(principal.id());
     }
 
     @PostMapping("/notebook/{problemId}/toggle-star")
     public Map<String, Object> toggleStar(@PathVariable Long problemId,
-                                           @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.toggleStar(userId, problemId);
+                                           @CurrentUser UserPrincipal principal) {
+        return noteService.toggleStar(principal.id(), problemId);
     }
 
     @PostMapping("/notebook/{problemId}/toggle-todo")
     public Map<String, Object> toggleTodo(@PathVariable Long problemId,
-                                           @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.toggleTodo(userId, problemId);
+                                           @CurrentUser UserPrincipal principal) {
+        return noteService.toggleTodo(principal.id(), problemId);
     }
 
     public record WrongNoteRequest(String note, String errorReason) {}
@@ -114,17 +112,14 @@ public class PracticeController {
     @PostMapping("/notebook/{problemId}/wrong")
     public ProblemNoteDto saveWrongNote(@PathVariable Long problemId,
                                         @RequestBody WrongNoteRequest req,
-                                        @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.saveWrongNote(userId, problemId, req.note(), req.errorReason());
+                                        @CurrentUser UserPrincipal principal) {
+        return noteService.saveWrongNote(principal.id(), problemId, req.note(), req.errorReason());
     }
 
     @DeleteMapping("/notebook/{problemId}/wrong")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeWrongNote(@PathVariable Long problemId,
-                                @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        noteService.removeWrongNote(userId, problemId);
+    public void removeWrongNote(@PathVariable Long problemId, @CurrentUser UserPrincipal principal) {
+        noteService.removeWrongNote(principal.id(), problemId);
     }
 
     public record RetryRequest(int quality) {}
@@ -132,15 +127,13 @@ public class PracticeController {
     @PostMapping("/notebook/{problemId}/retry")
     public ProblemNoteDto recordRetry(@PathVariable Long problemId,
                                       @RequestBody RetryRequest req,
-                                      @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        return noteService.recordRetry(userId, problemId, req.quality());
+                                      @CurrentUser UserPrincipal principal) {
+        return noteService.recordRetry(principal.id(), problemId, req.quality());
     }
 
     @PostMapping("/notebook/ai-analysis")
-    public WeaknessAnalysisDto aiAnalysis(@AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = userService.getUserId(userDetails.getUsername());
-        WeaknessAnalysisDto data = noteService.getWeaknessData(userId);
+    public WeaknessAnalysisDto aiAnalysis(@CurrentUser UserPrincipal principal) {
+        WeaknessAnalysisDto data = noteService.getWeaknessData(principal.id());
         if (data.totalWrong() == 0) {
             return data;
         }

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,30 +28,76 @@ public class ProblemService {
     private final ProblemNoteRepository noteRepository;
     private final UserRepository userRepository;
     private final JudgeService judgeService;
+    private final ProblemNoteService problemNoteService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public List<CodeProblemDto> getAllProblems(Long userId) {
-        // Batch-fetch all notes and fail counts to avoid N+1
-        Map<Long, ProblemNote> noteMap = Map.of();
-        Map<Long, Integer> failMap = Map.of();
+    public List<ProblemSummaryDto> getAllProblemsSummary(Long userId) {
+        // All batch-fetched — zero N+1 per problem
+        Map<Long, ProblemNote> noteMap = new HashMap<>();
+        Map<Long, Integer> failMap = new HashMap<>();
+        Set<Long> acceptedIds = new HashSet<>();
+        Map<Long, Integer> attemptMap = new HashMap<>();
+
         if (userId != null) {
-            noteMap = noteRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
-                    .collect(java.util.stream.Collectors.toMap(n -> n.getProblem().getId(), n -> n, (a, b) -> a));
-            failMap = new HashMap<>();
+            noteRepository.findByUserIdOrderByUpdatedAtDesc(userId)
+                    .forEach(n -> noteMap.put(n.getProblem().getId(), n));
             for (Object[] row : submissionRepository.countFailsByUser(userId)) {
                 failMap.put((Long) row[0], ((Long) row[1]).intValue());
             }
+            for (Object[] row : submissionRepository.countAttemptsByUser(userId)) {
+                attemptMap.put((Long) row[0], ((Long) row[1]).intValue());
+            }
+            submissionRepository.findAcceptedProblemIdsByUser(userId)
+                    .forEach(acceptedIds::add);
+        }
+
+        return problemRepository.findAllByOrderByProblemNumberAsc()
+                .stream().map(p -> {
+                    ProblemNote note = noteMap.get(p.getId());
+                    String bm = note != null && note.getBookmarkType() != null ? note.getBookmarkType().name() : null;
+                    boolean starred = note != null && note.isStarred();
+                    int failCount = failMap.getOrDefault(p.getId(), 0);
+                    int attemptCount = attemptMap.getOrDefault(p.getId(), 0);
+                    boolean accepted = acceptedIds.contains(p.getId());
+                    return new ProblemSummaryDto(
+                            p.getId(), p.getProblemNumber(), p.getTitle(), p.getDifficulty(),
+                            p.getCategory(), p.getTags(), p.getHint(),
+                            accepted, bm, starred, failCount, attemptCount);
+                }).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CodeProblemDto> getAllProblems(Long userId) {
+        Map<Long, ProblemNote> noteMap = new HashMap<>();
+        Map<Long, Integer> failMap = new HashMap<>();
+        Set<Long> acceptedIds = new HashSet<>();
+        Map<Long, Integer> attemptMap = new HashMap<>();
+
+        if (userId != null) {
+            noteRepository.findByUserIdOrderByUpdatedAtDesc(userId)
+                    .forEach(n -> noteMap.put(n.getProblem().getId(), n));
+            for (Object[] row : submissionRepository.countFailsByUser(userId)) {
+                failMap.put((Long) row[0], ((Long) row[1]).intValue());
+            }
+            for (Object[] row : submissionRepository.countAttemptsByUser(userId)) {
+                attemptMap.put((Long) row[0], ((Long) row[1]).intValue());
+            }
+            submissionRepository.findAcceptedProblemIdsByUser(userId)
+                    .forEach(acceptedIds::add);
         }
         final Map<Long, ProblemNote> notes = noteMap;
         final Map<Long, Integer> fails = failMap;
+        final Set<Long> accepted = acceptedIds;
+        final Map<Long, Integer> attempts = attemptMap;
         return problemRepository.findAllByOrderByProblemNumberAsc()
                 .stream().map(p -> {
                     ProblemNote note = notes.get(p.getId());
                     String bm = note != null && note.getBookmarkType() != null ? note.getBookmarkType().name() : null;
                     boolean starred = note != null && note.isStarred();
                     int failCount = fails.getOrDefault(p.getId(), 0);
-                    return toDto(p, userId, bm, starred, failCount);
+                    int attemptCount = attempts.getOrDefault(p.getId(), 0);
+                    return toDtoWithCounts(p, accepted.contains(p.getId()), bm, starred, failCount, attemptCount);
                 }).toList();
     }
 
@@ -69,7 +116,9 @@ public class ProblemService {
             }
             failCount = submissionRepository.countByProblemIdAndUserId(id, userId);
         }
-        return toDto(p, userId, bookmark, starred, failCount);
+        boolean accepted = userId != null && submissionRepository.existsByProblemIdAndUserIdAndStatus(id, userId, "ACCEPTED");
+        int attemptCount = userId != null ? submissionRepository.countByProblemIdAndUserId(id, userId) : 0;
+        return toDtoWithCounts(p, accepted, bookmark, starred, failCount, attemptCount);
     }
 
     @Transactional
@@ -138,29 +187,17 @@ public class ProblemService {
                 problem, user, req.language(), req.code(), overallStatus, passed, testCases.size());
         submissionRepository.save(submission);
 
-        // Auto-update retry schedule if user has a WRONG note and got ACCEPTED
+        // Auto-update retry schedule if user has a WRONG note and got ACCEPTED.
+        // Delegates to the shared SM-2 engine via ProblemNoteService (quality 5 = perfect recall).
         if ("ACCEPTED".equals(overallStatus) && userId != null) {
             noteRepository.findByUserIdAndProblemId(userId, problemId).ifPresent(note -> {
                 if (note.getBookmarkType() == BookmarkType.WRONG) {
-                    // Record as quality 5 (perfect recall)
-                    note.setRetryCount(note.getRetryCount() + 1);
-                    note.setLastRetryDate(java.time.LocalDate.now());
-                    if (note.getRetryCount() <= 1) {
-                        note.setRetryInterval(1);
-                    } else if (note.getRetryCount() == 2) {
-                        note.setRetryInterval(6);
-                    } else {
-                        note.setRetryInterval((int) Math.round(note.getRetryInterval() * note.getEaseFactor()));
-                    }
-                    double ef = note.getEaseFactor() + 0.1;
-                    note.setEaseFactor(Math.max(1.3, ef));
-                    note.setNextRetryDate(java.time.LocalDate.now().plusDays(note.getRetryInterval()));
-                    noteRepository.save(note);
+                    problemNoteService.recordRetry(userId, problemId, 5);
                 }
             });
         }
 
-        return new CodeSubmitResultDto(overallStatus, passed, testCases.size(), results);
+        return new CodeSubmitResultDto(submission.getId(), overallStatus, passed, testCases.size(), results);
     }
 
     @Transactional(readOnly = true)
@@ -188,7 +225,7 @@ public class ProblemService {
         p.setHint(req.hint());
         p.setCategory(req.category());
         p = problemRepository.save(p);
-        return toDto(p, null, null, false, 0);
+        return toDtoWithCounts(p, false, null, false, 0, 0);
     }
 
     @Transactional
@@ -207,7 +244,7 @@ public class ProblemService {
         if (req.tags() != null) p.setTags(req.tags());
         if (req.category() != null) p.setCategory(req.category());
         p = problemRepository.save(p);
-        return toDto(p, null, null, false, 0);
+        return toDtoWithCounts(p, false, null, false, 0, 0);
     }
 
     @Transactional
@@ -218,16 +255,15 @@ public class ProblemService {
         problemRepository.deleteById(id);
     }
 
-    private CodeProblemDto toDto(CodeProblem p, Long userId, String bookmarkType, boolean starred, int failCount) {
-        boolean accepted = userId != null && submissionRepository.existsByProblemIdAndUserIdAndStatus(p.getId(), userId, "ACCEPTED");
-        int attemptCount = userId != null ? submissionRepository.countByProblemIdAndUserId(p.getId(), userId) : 0;
+    private CodeProblemDto toDtoWithCounts(CodeProblem p, boolean accepted, String bookmarkType,
+                                            boolean starred, int failCount, int attemptCount) {
         return new CodeProblemDto(
                 p.getId(), p.getProblemNumber(), p.getTitle(), p.getDifficulty(),
                 p.getDescription(), p.getHint(),
                 p.getJavaTemplate(), p.getPythonTemplate(),
                 p.getJavaDriverCode(), p.getPythonDriverCode(),
-                p.getTestCasesJson(), p.getTags(), p.getCategory(), accepted, bookmarkType, starred,
-                failCount, attemptCount);
+                p.getTestCasesJson(), p.getTags(), p.getCategory(),
+                accepted, bookmarkType, starred, failCount, attemptCount);
     }
 
     private List<Map<String, String>> parseTestCases(String json) {

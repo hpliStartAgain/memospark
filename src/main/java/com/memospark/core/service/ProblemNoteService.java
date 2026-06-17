@@ -20,6 +20,7 @@ public class ProblemNoteService {
     private final ProblemNoteRepository noteRepository;
     private final CodeProblemRepository problemRepository;
     private final UserRepository userRepository;
+    private final SrsEngine srsEngine;
 
     @Transactional(readOnly = true)
     public List<ProblemNoteDto> getAllNotes(Long userId) {
@@ -122,20 +123,18 @@ public class ProblemNoteService {
         note.setRetryCount(note.getRetryCount() + 1);
         note.setLastRetryDate(LocalDate.now());
 
+        double ef = srsEngine.nextEaseFactor(
+                note.getEaseFactor(), quality, SrsEngine.DEFAULT_MIN_EASE_FACTOR);
+        note.setEaseFactor(ef);
+
         if (quality >= 3) {
-            if (note.getRetryCount() == 1) {
-                note.setRetryInterval(1);
-            } else if (note.getRetryCount() == 2) {
-                note.setRetryInterval(6);
-            } else {
-                note.setRetryInterval((int) Math.round(note.getRetryInterval() * note.getEaseFactor()));
-            }
+            // repetitions is 0-based: retryCount was just incremented, so subtract 1.
+            note.setRetryInterval(srsEngine.nextIntervalOnSuccess(
+                    note.getRetryCount() - 1, note.getRetryInterval(), ef, 1, 6));
         } else {
             note.setRetryInterval(1);
         }
 
-        double ef = note.getEaseFactor() + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-        note.setEaseFactor(Math.max(1.3, ef));
         note.setNextRetryDate(LocalDate.now().plusDays(note.getRetryInterval()));
         return toDto(noteRepository.save(note));
     }

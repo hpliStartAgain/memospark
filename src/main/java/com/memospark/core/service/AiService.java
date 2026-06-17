@@ -3,6 +3,7 @@ package com.memospark.core.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.Map;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class AiService {
 
     @Value("${ai.api.key}")
@@ -28,7 +30,13 @@ public class AiService {
     @Value("${ai.api.model:qwen-turbo}")
     private String model;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Value("${ai.api.timeout-seconds:30}")
+    private int timeoutSeconds;
+
+    @Value("${ai.api.max-retries:2}")
+    private int maxRetries;
+
+    private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -164,6 +172,69 @@ public class AiService {
     }
 
     /**
+     * Analyze multiple Job Descriptions and propose common tech-area decks.
+     * Each deck has a name, description, and a list of sub-topics (which will be
+     * used as prompts for batched card generation).
+     *
+     * Returns: {"decks":[{"name":"...","description":"...","topics":["..."],"suggestedCardCount":10}]}
+     */
+    public Map<String, Object> analyzeJds(List<String> jds, String language) {
+        String lang = "zh".equals(language) ? "Chinese" : "English";
+        StringBuilder joined = new StringBuilder();
+        int idx = 1;
+        for (String jd : jds) {
+            if (jd == null || jd.isBlank()) continue;
+            joined.append("--- JD #").append(idx++).append(" ---\n").append(jd.trim()).append("\n\n");
+        }
+
+        String prompt = """
+                You are a senior technical recruiter and interview coach. A candidate pasted %d target job descriptions (JDs) below.
+                Extract the COMMON required technical areas across these JDs (weighted by frequency), then propose a set of study decks that,
+                together, best cover what the candidate must master to pass interviews for these roles.
+
+                For each proposed deck, give:
+                - name: short topic name (a concrete tech area, e.g. "Redis 原理与实战" or "System Design Fundamentals")
+                - description: 1 sentence explaining why it is needed across these JDs
+                - topics: 3-8 concrete sub-topics (each will be used to generate flashcards separately; keep each sub-topic specific enough that ~10 Q&A cards can be produced)
+                - suggestedCardCount: integer 8-20, total recommended cards for this deck
+
+                Guidelines:
+                - Prefer 5-10 decks total; merge closely related areas.
+                - Skip soft-skill / HR-only items.
+                - If JDs disagree, favour areas appearing in most JDs.
+
+                Reply in %s. Return ONLY JSON, no markdown:
+                {"decks":[{"name":"...","description":"...","topics":["...","..."],"suggestedCardCount":12}]}
+
+                JDs:
+                %s
+                """.formatted(idx - 1, lang, joined.toString());
+
+        String response = chat(prompt);
+        String json = response;
+        if (json.contains("{")) {
+            json = json.substring(json.indexOf("{"), json.lastIndexOf("}") + 1);
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse AI JD analysis response: {}", response, e);
+            throw new RuntimeException("AI returned invalid JD analysis format");
+        }
+    }
+
+    /**
+     * Generate flashcards for a specific sub-topic inside a deck.
+     * Thin wrapper around generateCards with deck context for better targeting.
+     */
+    public List<Map<String, String>> generateCardsForTopic(String deckName, String topic, int count, String language) {
+        String composed = (deckName == null || deckName.isBlank())
+                ? topic
+                : deckName + " - " + topic;
+        return generateCards(composed, count, language);
+    }
+
+    /**
      * Analyze user's weakness patterns based on wrong problem data.
      */
     public String analyzeWeakness(String summary) {
@@ -186,6 +257,24 @@ public class AiService {
     }
 
     private String chat(String userMessage) {
+        RuntimeException last = null;
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            if (attempt > 0) {
+                long backoffMs = (long) Math.min(4000, 500 * Math.pow(2, attempt - 1));
+                log.warn("AI call retry {}/{} after {}ms", attempt, maxRetries, backoffMs);
+                sleep(backoffMs);
+            }
+            try {
+                return chatOnce(userMessage);
+            } catch (RetryableAiException e) {
+                last = e;
+            }
+        }
+        throw new RuntimeException("AI service unavailable: "
+                + (last != null ? last.getMessage() : "unknown error"));
+    }
+
+    private String chatOnce(String userMessage) {
         try {
             String body = objectMapper.writeValueAsString(Map.of(
                     "model", model,
@@ -197,24 +286,42 @@ public class AiService {
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(timeoutSeconds))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() != 200) {
-                log.error("AI API error {}: {}", response.statusCode(), response.body());
-                throw new RuntimeException("AI service error: " + response.statusCode());
+            int sc = response.statusCode();
+            if (sc != 200) {
+                log.error("AI API error {}: {}", sc, response.body());
+                // 429 / 5xx are transient and worth retrying; 4xx (except 429) are not.
+                if (sc == 429 || sc >= 500) {
+                    throw new RetryableAiException("AI service error: " + sc);
+                }
+                throw new RuntimeException("AI service error: " + sc);
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             return root.path("choices").path(0)
                     .path("message").path("content").asText("");
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("AI API call failed", e);
-            throw new RuntimeException("AI service unavailable: " + e.getMessage());
+        } catch (java.io.IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            log.error("AI API call failed (transient)", e);
+            throw new RetryableAiException("AI service unavailable: " + e.getMessage());
+        }
+    }
+
+    private void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static class RetryableAiException extends RuntimeException {
+        RetryableAiException(String message) {
+            super(message);
         }
     }
 }

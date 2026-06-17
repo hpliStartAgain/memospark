@@ -20,6 +20,8 @@ public class AiController {
     public record GenerateCardsRequest(String topic, int count, String language) {}
     public record GradeRequest(String question, String referenceAnswer, String userAnswer) {}
     public record AnalyzeTLERequest(String problemDescription, String userCode, String language) {}
+    public record AnalyzeJdsRequest(List<String> jds, String language) {}
+    public record GenerateJdCardsRequest(String deckName, String topic, int count, String language) {}
 
     @PostMapping("/hint")
     public Map<String, String> getHint(@RequestBody HintRequest req,
@@ -46,5 +48,24 @@ public class AiController {
                                                     @AuthenticationPrincipal UserDetails userDetails) {
         int count = Math.min(req.count() > 0 ? req.count() : 10, 30);
         return aiService.generateCards(req.topic(), count, req.language());
+    }
+
+    @PostMapping("/jd/analyze")
+    public Map<String, Object> analyzeJds(@RequestBody AnalyzeJdsRequest req) {
+        if (req.jds() == null || req.jds().isEmpty()) {
+            throw new IllegalArgumentException("At least one JD is required");
+        }
+        // Cap to avoid oversized prompts
+        List<String> jds = req.jds().stream().limit(20).toList();
+        return aiService.analyzeJds(jds, req.language());
+    }
+
+    @PostMapping("/jd/generate-cards")
+    public List<Map<String, String>> generateJdCards(@RequestBody GenerateJdCardsRequest req) {
+        if (req.topic() == null || req.topic().isBlank()) {
+            throw new IllegalArgumentException("topic is required");
+        }
+        int count = Math.min(req.count() > 0 ? req.count() : 10, 30);
+        return aiService.generateCardsForTopic(req.deckName(), req.topic(), count, req.language());
     }
 }

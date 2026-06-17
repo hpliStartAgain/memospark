@@ -14,6 +14,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 import java.util.Map;
 
@@ -36,16 +38,39 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+        // CSRF: cookie-based so SPA can read XSRF-TOKEN and send X-XSRF-TOKEN header.
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(requestHandler)
+                .ignoringRequestMatchers(
+                        "/api/auth/login", "/api/auth/register",
+                        "/api/quick-add/**"   // Bearer-auth, stateless — no CSRF needed
+                )
+            )
             .authorizeHttpRequests(auth -> auth
+                // Auth endpoints & static SPA assets
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/login.html", "/style.css", "/app.js", "/i18n-builtin.js", "/i18n-problems.js").permitAll()
+                // Quick-add: Bearer-key auth handled in controller
+                .requestMatchers("/api/quick-add/**").permitAll()
+                .requestMatchers(
+                    "/", "/index.html", "/login",
+                    "/assets/**", "/*.js", "/*.css", "/*.ico", "/*.png", "/*.svg",
+                    "/decks/**", "/review/**", "/practice/**", "/notebook/**",
+                    "/stats/**", "/settings/**"
+                ).permitAll()
+                // Actuator health (unauthenticated)
+                .requestMatchers("/actuator/health").permitAll()
+                // Admin-only operations
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/practice/problems").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/practice/problems/*").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/practice/problems/*").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/decks/pool").hasRole("ADMIN")
+                // Everything else under /api requires authentication
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
@@ -56,6 +81,12 @@ public class SecurityConfig {
                     objectMapper.writeValue(response.getOutputStream(),
                             Map.of("error", "Not authenticated"));
                 })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpStatus.FORBIDDEN.value());
+                    response.setContentType("application/json;charset=UTF-8");
+                    objectMapper.writeValue(response.getOutputStream(),
+                            Map.of("error", "Access denied"));
+                })
             )
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
@@ -65,6 +96,8 @@ public class SecurityConfig {
                     objectMapper.writeValue(response.getOutputStream(),
                             Map.of("message", "Logged out"));
                 })
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
             );
         return http.build();
     }

@@ -3,6 +3,7 @@ package com.memospark.core.dto;
 import java.util.List;
 
 public record CodeSubmitResultDto(
+        Long submissionId,
         String status,
         int passedCases,
         int totalCases,

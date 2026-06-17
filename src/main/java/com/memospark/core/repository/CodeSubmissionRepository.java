@@ -21,5 +21,11 @@ public interface CodeSubmissionRepository extends JpaRepository<CodeSubmission, 
     @Query("SELECT s.problem.id, COUNT(s) FROM CodeSubmission s WHERE s.user.id = :userId AND s.status <> 'ACCEPTED' GROUP BY s.problem.id")
     List<Object[]> countFailsByUser(Long userId);
 
+    @Query("SELECT s.problem.id, COUNT(s) FROM CodeSubmission s WHERE s.user.id = :userId GROUP BY s.problem.id")
+    List<Object[]> countAttemptsByUser(Long userId);
+
+    @Query("SELECT DISTINCT s.problem.id FROM CodeSubmission s WHERE s.user.id = :userId AND s.status = 'ACCEPTED'")
+    List<Long> findAcceptedProblemIdsByUser(Long userId);
+
     int countByProblemIdAndUserId(Long problemId, Long userId);
 }

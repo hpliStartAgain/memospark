@@ -1,5 +1,8 @@
 package com.memospark.core.controller;
 
+import com.memospark.core.config.CurrentUser;
+import com.memospark.core.config.LoginAttemptService;
+import com.memospark.core.config.UserPrincipal;
 import com.memospark.core.dto.LoginRequest;
 import com.memospark.core.dto.RegisterRequest;
 import com.memospark.core.dto.UserDto;
@@ -9,11 +12,11 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +29,7 @@ public class AuthController {
 
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
+    private final LoginAttemptService loginAttemptService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -35,23 +39,31 @@ public class AuthController {
 
     @PostMapping("/login")
     public UserDto login(@RequestBody LoginRequest req, HttpServletRequest request) {
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.username(), req.password()));
-        SecurityContextHolder.getContext().setAuthentication(auth);
-        // Save context to session
-        HttpSession session = request.getSession(true);
-        session.setAttribute(
-                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-                SecurityContextHolder.getContext());
-        return userService.getUserDto(req.username());
+        if (loginAttemptService.isLocked(req.username())) {
+            throw new LockedException("Account temporarily locked due to too many failed attempts");
+        }
+        try {
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.username(), req.password()));
+            loginAttemptService.loginSucceeded(req.username());
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            HttpSession session = request.getSession(true);
+            session.setAttribute(
+                    HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                    SecurityContextHolder.getContext());
+            return userService.getUserDto(req.username());
+        } catch (BadCredentialsException ex) {
+            loginAttemptService.loginFailed(req.username());
+            throw ex;
+        }
     }
 
     @GetMapping("/me")
-    public org.springframework.http.ResponseEntity<?> me(@AuthenticationPrincipal UserDetails userDetails) {
-        if (userDetails == null) {
+    public org.springframework.http.ResponseEntity<?> me(@CurrentUser UserPrincipal principal) {
+        if (principal == null) {
             return org.springframework.http.ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Not authenticated"));
         }
-        return org.springframework.http.ResponseEntity.ok(userService.getUserDto(userDetails.getUsername()));
+        return org.springframework.http.ResponseEntity.ok(userService.getUserDto(principal.username()));
     }
 }

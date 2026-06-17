@@ -12,6 +12,12 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     long countByDeckId(Long deckId);
     void deleteByDeckId(Long deckId);
 
+    @Query("SELECT COUNT(c) FROM Card c WHERE c.deck.user.id = :userId")
+    long countByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT cp FROM CardProgress cp WHERE cp.card.id IN :cardIds")
+    java.util.List<com.memospark.core.domain.CardProgress> findProgressByCardIdIn(@Param("cardIds") java.util.List<Long> cardIds);
+
     @Query("SELECT DISTINCT c.tags FROM Card c WHERE c.deck.id = :deckId AND c.tags IS NOT NULL AND c.tags <> ''")
     List<String> findDistinctTagsByDeckId(@Param("deckId") Long deckId);
 }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 @Service
@@ -27,8 +28,14 @@ public class CardService {
     public List<ReviewCardDto> getCardsByDeck(Long deckId, Long userId, boolean isAdmin) {
         Deck deck = deckService.getDeckOrThrow(deckId);
         deckService.verifyOwnership(deck, userId, isAdmin);
-        return cardRepository.findByDeckId(deckId).stream()
-                .map(this::toReviewCardDto)
+        List<Card> cards = cardRepository.findByDeckId(deckId);
+        // Batch-fetch all progress in one query — no N+1
+        List<Long> cardIds = cards.stream().map(Card::getId).toList();
+        Map<Long, CardProgress> progressMap = cardProgressRepository
+                .findByCardIdIn(cardIds).stream()
+                .collect(java.util.stream.Collectors.toMap(cp -> cp.getCard().getId(), cp -> cp));
+        return cards.stream()
+                .map(c -> toReviewCardDto(c, progressMap.get(c.getId())))
                 .toList();
     }
 
@@ -43,7 +50,7 @@ public class CardService {
         srsService.initProgress(progress, userId);
         cardProgressRepository.save(progress);
 
-        return toReviewCardDto(card);
+        return toReviewCardDto(card, cardProgressRepository.findByCardId(card.getId()).orElse(null));
     }
 
     @Transactional
@@ -58,7 +65,7 @@ public class CardService {
         if (req.back() != null) card.setBack(req.back());
         if (req.tags() != null) card.setTags(req.tags());
         card = cardRepository.save(card);
-        return toReviewCardDto(card);
+        return toReviewCardDto(card, cardProgressRepository.findByCardId(card.getId()).orElse(null));
     }
 
     @Transactional
@@ -106,8 +113,7 @@ public class CardService {
                 .orElseThrow(() -> new NoSuchElementException("Card not found: " + cardId));
     }
 
-    private ReviewCardDto toReviewCardDto(Card card) {
-        CardProgress progress = cardProgressRepository.findByCardId(card.getId()).orElse(null);
+    private ReviewCardDto toReviewCardDto(Card card, CardProgress progress) {
         return new ReviewCardDto(
                 card.getId(),
                 card.getDeck().getId(),

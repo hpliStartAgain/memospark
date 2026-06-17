@@ -25,10 +25,8 @@ public class StatisticsService {
     public StatsDto getStats(Long userId) {
         LocalDate today = LocalDate.now();
 
-        long totalCards = deckRepository.findByUserId(userId).stream()
-                .mapToLong(deck -> cardRepository.countByDeckId(deck.getId()))
-                .sum();
-        long totalDecks = deckRepository.findByUserId(userId).size();
+        long totalCards = cardRepository.countByUserId(userId);
+        long totalDecks = deckRepository.countByUserId(userId);
         long dueToday = cardProgressRepository.countDueCardsByUserId(userId, today);
         long reviewedToday = reviewLogRepository.countByUserIdAndReviewDate(userId, today);
         long totalReviews = reviewLogRepository.countByUserId(userId);

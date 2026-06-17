@@ -13,6 +13,9 @@ public interface CardProgressRepository extends JpaRepository<CardProgress, Long
 
     Optional<CardProgress> findByCardId(Long cardId);
 
+    @Query("SELECT cp FROM CardProgress cp WHERE cp.card.id IN :cardIds")
+    List<CardProgress> findByCardIdIn(@Param("cardIds") List<Long> cardIds);
+
     List<CardProgress> findByNextReviewDateLessThanEqual(LocalDate date);
 
     @Query("SELECT cp FROM CardProgress cp JOIN cp.card c WHERE c.deck.user.id = :userId AND cp.nextReviewDate <= :date")

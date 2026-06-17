@@ -21,6 +21,7 @@ public class SpacedRepetitionService {
 
     private final SrsSettingsRepository settingsRepository;
     private final UserRepository userRepository;
+    private final SrsEngine srsEngine;
 
     private SrsSettings getSettings(Long userId) {
         return settingsRepository.findByUserId(userId).orElseGet(() -> {
@@ -38,25 +39,19 @@ public class SpacedRepetitionService {
         SrsSettings settings = getSettings(userId);
 
         int repetitions = progress.getRepetitions();
-        double easeFactor = progress.getEaseFactor();
+        double easeFactor = srsEngine.nextEaseFactor(
+                progress.getEaseFactor(), quality, settings.getMinEaseFactor());
         int interval;
 
         if (quality >= 3) {
-            if (repetitions == 0) {
-                interval = settings.getFirstInterval();
-            } else if (repetitions == 1) {
-                interval = settings.getSecondInterval();
-            } else {
-                interval = (int) Math.round(progress.getInterval() * easeFactor);
-            }
+            interval = srsEngine.nextIntervalOnSuccess(
+                    repetitions, progress.getInterval(), easeFactor,
+                    settings.getFirstInterval(), settings.getSecondInterval());
             repetitions++;
         } else {
             repetitions = 0;
             interval = settings.getFirstInterval();
         }
-
-        easeFactor = easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02);
-        easeFactor = Math.max(settings.getMinEaseFactor(), easeFactor);
 
         progress.setRepetitions(repetitions);
         progress.setEaseFactor(easeFactor);

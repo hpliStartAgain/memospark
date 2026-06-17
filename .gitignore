@@ -40,3 +40,35 @@ src/main/resources/application-local.properties
 
 ### Claude ###
 .claude/
+
+### Security — never commit secrets ###
+.env
+.env.local
+.env.*.local
+
+### Debug/test JSON files committed by mistake ###
+cookies.txt
+login.json
+ai.json
+p1.json
+req.json
+rev.json
+submit.json
+submit_resp.json
+undo.json
+today.json
+problems.json
+
+### Node / Frontend build ###
+frontend/node/
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+frontend/.env
+
+### MCP Server ###
+mcp-server/node_modules/
+mcp-server/dist/
+
+### Thumbs ###
+Thumbs.db
