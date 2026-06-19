@@ -40,6 +40,10 @@ export const authApi = {
     api.post('/auth/register', { username, password }).then(r => r.data),
   me:       () => api.get('/auth/me').then(r => r.data),
   logout:   () => api.post('/auth/logout').then(r => r.data),
+  requestPasswordReset: (username: string) =>
+    api.post('/auth/password-reset/request', { username }).then(r => r.data),
+  confirmPasswordReset: (token: string, newPassword: string) =>
+    api.post('/auth/password-reset/confirm', { token, newPassword }).then(r => r.data),
 }
 
 // ── Decks ─────────────────────────────────────────────────────────────────

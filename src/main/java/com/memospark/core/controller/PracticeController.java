@@ -32,7 +32,7 @@ public class PracticeController {
     }
 
     @GetMapping("/problems/{id}")
-    public CodeProblemDto getProblem(@PathVariable Long id, @CurrentUser UserPrincipal principal) {
+    public CodeProblemDetailDto getProblem(@PathVariable Long id, @CurrentUser UserPrincipal principal) {
         return problemService.getProblem(id, principal != null ? principal.id() : null);
     }
 

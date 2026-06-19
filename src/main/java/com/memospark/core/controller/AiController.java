@@ -2,9 +2,11 @@ package com.memospark.core.controller;
 
 import com.memospark.core.service.AiService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -12,6 +14,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
+@Slf4j
 public class AiController {
 
     private final AiService aiService;
@@ -28,6 +31,34 @@ public class AiController {
                                         @AuthenticationPrincipal UserDetails userDetails) {
         String hint = aiService.generateHint(req.problemDescription(), req.userCode(), req.level());
         return Map.of("hint", hint);
+    }
+
+    @PostMapping(value = "/hint/stream", produces = "text/event-stream")
+    public SseEmitter getHintStream(@RequestBody HintRequest req,
+                                    @AuthenticationPrincipal UserDetails userDetails) {
+        SseEmitter emitter = new SseEmitter(60_000L);
+        Thread.startVirtualThread(() -> {
+            try {
+                String full = aiService.generateHintStream(
+                        req.problemDescription(), req.userCode(), req.level(),
+                        chunk -> {
+                            try {
+                                emitter.send(SseEmitter.event().name("chunk").data(chunk));
+                            } catch (Exception e) {
+                                log.debug("SSE send failed", e);
+                            }
+                        });
+                emitter.send(SseEmitter.event().name("done").data(full));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("Streaming hint failed", e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                } catch (Exception ignored) {}
+                emitter.completeWithError(e);
+            }
+        });
+        return emitter;
     }
 
     @PostMapping("/grade")

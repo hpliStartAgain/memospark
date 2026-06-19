@@ -2,13 +2,16 @@ package com.memospark.core.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memospark.core.domain.BookmarkType;
 import com.memospark.core.domain.CodeProblem;
 import com.memospark.core.domain.CodeSubmission;
+import com.memospark.core.domain.ProblemNote;
 import com.memospark.core.domain.User;
 import com.memospark.core.dto.CodeSubmitRequest;
 import com.memospark.core.dto.CodeSubmitResultDto;
 import com.memospark.core.repository.CodeProblemRepository;
 import com.memospark.core.repository.CodeSubmissionRepository;
+import com.memospark.core.repository.ProblemNoteRepository;
 import com.memospark.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import jakarta.annotation.PreDestroy;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +46,9 @@ public class JudgeOrchestrator {
     private final CodeProblemRepository problemRepository;
     private final CodeSubmissionRepository submissionRepository;
     private final UserRepository userRepository;
-    private final JudgeService judgeService;
+    private final JudgeBackend judgeBackend;
+    private final ProblemNoteRepository problemNoteRepository;
+    private final ProblemNoteService problemNoteService;
     private final ObjectMapper objectMapper;
 
     /** In-flight SSE emitters keyed by submissionId. */
@@ -51,6 +57,17 @@ public class JudgeOrchestrator {
     /** Bounded executor for parallel test case execution. */
     private final ExecutorService executor = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors()));
+
+    @PreDestroy
+    public void shutdown() {
+        log.info("Shutting down JudgeOrchestrator executor...");
+        executor.shutdown();
+        // Close any lingering SSE emitters
+        emitters.values().forEach(emitter -> {
+            try { emitter.complete(); } catch (Exception ignored) {}
+        });
+        emitters.clear();
+    }
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -148,6 +165,16 @@ public class JudgeOrchestrator {
             submission.setTotalCases(total);
             submissionRepository.save(submission);
 
+            // Auto-update retry schedule if user has a WRONG note and got ACCEPTED
+            if ("ACCEPTED".equals(overallStatus) && submission.getUser() != null) {
+                problemNoteRepository.findByUserIdAndProblemId(
+                        submission.getUser().getId(), problem.getId()).ifPresent(note -> {
+                    if (note.getBookmarkType() == BookmarkType.WRONG) {
+                        problemNoteService.recordRetry(submission.getUser().getId(), problem.getId(), 5);
+                    }
+                });
+            }
+
             // Notify subscriber
             SseEmitter emitter = emitters.get(submissionId);
             if (emitter != null) {
@@ -179,7 +206,7 @@ public class JudgeOrchestrator {
                                 String fullCode, String language) {
         String input = tc.get("input");
         String expected = tc.get("expectedOutput").trim();
-        JudgeService.JudgeResult jr = judgeService.execute(fullCode, language, input);
+        JudgeBackend.JudgeResult jr = judgeBackend.execute(fullCode, language, input);
         String actual = jr.stdout().trim();
         boolean pass;
         String status;

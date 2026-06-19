@@ -1,12 +1,8 @@
 package com.memospark.core.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.memospark.core.domain.BookmarkType;
 import com.memospark.core.domain.CodeProblem;
 import com.memospark.core.domain.CodeSubmission;
 import com.memospark.core.domain.ProblemNote;
-import com.memospark.core.domain.User;
 import com.memospark.core.dto.*;
 import com.memospark.core.repository.CodeProblemRepository;
 import com.memospark.core.repository.CodeSubmissionRepository;
@@ -27,9 +23,6 @@ public class ProblemService {
     private final CodeSubmissionRepository submissionRepository;
     private final ProblemNoteRepository noteRepository;
     private final UserRepository userRepository;
-    private final JudgeService judgeService;
-    private final ProblemNoteService problemNoteService;
-    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<ProblemSummaryDto> getAllProblemsSummary(Long userId) {
@@ -102,7 +95,7 @@ public class ProblemService {
     }
 
     @Transactional(readOnly = true)
-    public CodeProblemDto getProblem(Long id, Long userId) {
+    public CodeProblemDetailDto getProblem(Long id, Long userId) {
         CodeProblem p = getProblemOrThrow(id);
         String bookmark = null;
         boolean starred = false;
@@ -118,86 +111,7 @@ public class ProblemService {
         }
         boolean accepted = userId != null && submissionRepository.existsByProblemIdAndUserIdAndStatus(id, userId, "ACCEPTED");
         int attemptCount = userId != null ? submissionRepository.countByProblemIdAndUserId(id, userId) : 0;
-        return toDtoWithCounts(p, accepted, bookmark, starred, failCount, attemptCount);
-    }
-
-    @Transactional
-    public CodeSubmitResultDto submit(Long problemId, CodeSubmitRequest req, Long userId) {
-        CodeProblem problem = getProblemOrThrow(problemId);
-        User user = userRepository.findById(userId).orElse(null);
-
-        String driverCode = "java".equals(req.language())
-                ? problem.getJavaDriverCode()
-                : problem.getPythonDriverCode();
-
-        String fullCode = driverCode.replace("{{USER_CODE}}", req.code());
-
-        List<Map<String, String>> testCases = parseTestCases(problem.getTestCasesJson());
-
-        List<CodeSubmitResultDto.TestCaseResult> results = new ArrayList<>();
-        int passed = 0;
-        String overallStatus = "ACCEPTED";
-
-        for (int i = 0; i < testCases.size(); i++) {
-            Map<String, String> tc = testCases.get(i);
-            String input = tc.get("input");
-            String expected = tc.get("expectedOutput").trim();
-
-            JudgeService.JudgeResult judgeResult = judgeService.execute(fullCode, req.language(), input);
-
-            String actual = judgeResult.stdout().trim();
-            boolean pass;
-
-            if (judgeResult.statusId() == 6) {
-                overallStatus = "COMPILE_ERROR";
-                actual = judgeResult.compileOutput();
-                pass = false;
-            } else if (judgeResult.statusId() == 5) {
-                overallStatus = "TIME_LIMIT";
-                actual = "Time Limit Exceeded";
-                pass = false;
-            } else if (judgeResult.statusId() != 3) {
-                overallStatus = "RUNTIME_ERROR";
-                actual = judgeResult.stderr().isEmpty() ? "Runtime Error" : judgeResult.stderr();
-                pass = false;
-            } else {
-                pass = expected.equals(actual);
-                if (!pass && "ACCEPTED".equals(overallStatus)) {
-                    overallStatus = "WRONG_ANSWER";
-                }
-            }
-
-            if (pass) passed++;
-            results.add(new CodeSubmitResultDto.TestCaseResult(i + 1, pass, input, expected, actual));
-
-            // Stop on compilation/runtime error — fill remaining as not executed
-            if (judgeResult.statusId() != 3) {
-                for (int j = i + 1; j < testCases.size(); j++) {
-                    Map<String, String> remaining = testCases.get(j);
-                    results.add(new CodeSubmitResultDto.TestCaseResult(
-                            j + 1, false, remaining.get("input"),
-                            remaining.get("expectedOutput"), "Not executed"));
-                }
-                break;
-            }
-        }
-
-        // Persist submission
-        CodeSubmission submission = new CodeSubmission(
-                problem, user, req.language(), req.code(), overallStatus, passed, testCases.size());
-        submissionRepository.save(submission);
-
-        // Auto-update retry schedule if user has a WRONG note and got ACCEPTED.
-        // Delegates to the shared SM-2 engine via ProblemNoteService (quality 5 = perfect recall).
-        if ("ACCEPTED".equals(overallStatus) && userId != null) {
-            noteRepository.findByUserIdAndProblemId(userId, problemId).ifPresent(note -> {
-                if (note.getBookmarkType() == BookmarkType.WRONG) {
-                    problemNoteService.recordRetry(userId, problemId, 5);
-                }
-            });
-        }
-
-        return new CodeSubmitResultDto(submission.getId(), overallStatus, passed, testCases.size(), results);
+        return toDetailDto(p, accepted, bookmark, starred, failCount, attemptCount);
     }
 
     @Transactional(readOnly = true)
@@ -266,11 +180,14 @@ public class ProblemService {
                 accepted, bookmarkType, starred, failCount, attemptCount);
     }
 
-    private List<Map<String, String>> parseTestCases(String json) {
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse test cases", e);
-        }
+    private CodeProblemDetailDto toDetailDto(CodeProblem p, boolean accepted, String bookmarkType,
+                                              boolean starred, int failCount, int attemptCount) {
+        return new CodeProblemDetailDto(
+                p.getId(), p.getProblemNumber(), p.getTitle(), p.getDifficulty(),
+                p.getDescription(), p.getHint(),
+                p.getJavaTemplate(), p.getPythonTemplate(),
+                p.getTags(), p.getCategory(),
+                accepted, bookmarkType, starred, failCount, attemptCount);
     }
+
 }

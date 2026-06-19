@@ -31,6 +31,9 @@ public class User {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(length = 128, unique = true)
+    private String apiKey;
+
     public User(String username, String password, UserRole role) {
         this.username = username;
         this.password = password;

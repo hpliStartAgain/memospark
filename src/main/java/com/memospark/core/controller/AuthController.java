@@ -6,9 +6,12 @@ import com.memospark.core.config.UserPrincipal;
 import com.memospark.core.dto.LoginRequest;
 import com.memospark.core.dto.RegisterRequest;
 import com.memospark.core.dto.UserDto;
+import com.memospark.core.service.PasswordResetService;
 import com.memospark.core.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +33,7 @@ public class AuthController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final LoginAttemptService loginAttemptService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -66,4 +70,28 @@ public class AuthController {
         }
         return org.springframework.http.ResponseEntity.ok(userService.getUserDto(principal.username()));
     }
+
+    @PostMapping("/password-reset/request")
+    public Map<String, String> requestPasswordReset(@RequestBody PasswordResetRequest req) {
+        String token = passwordResetService.requestReset(req.username());
+        if (token == null) {
+            // Don't reveal whether user exists — return generic success
+            return Map.of("message", "If the user exists, a reset token has been generated.");
+        }
+        // For self-hosted without email: return the token directly
+        return Map.of("message", "Reset token generated.", "token", token);
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public Map<String, String> confirmPasswordReset(@RequestBody PasswordResetConfirm req) {
+        passwordResetService.resetPassword(req.token(), req.newPassword());
+        return Map.of("message", "Password reset successful. Please login with your new password.");
+    }
+
+    public record PasswordResetRequest(@NotBlank String username) {}
+
+    public record PasswordResetConfirm(
+            @NotBlank String token,
+            @NotBlank @Size(min = 6, max = 100) String newPassword
+    ) {}
 }

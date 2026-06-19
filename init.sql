@@ -24,8 +24,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password`   VARCHAR(255) NOT NULL,
   `role`       VARCHAR(10)  NOT NULL DEFAULT 'USER',
   `created_at` DATETIME(6)  NOT NULL,
+  `api_key`    VARCHAR(128) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_users_username` (`username`)
+  UNIQUE KEY `uk_users_username` (`username`),
+  UNIQUE KEY `uk_users_api_key` (`api_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------
@@ -194,6 +196,24 @@ CREATE TABLE IF NOT EXISTS `problem_notes` (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_problem_notes_problem`
     FOREIGN KEY (`problem_id`) REFERENCES `code_problems` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =====================================================================
+-- password_reset_tokens: token-based password reset flow
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
+  `id`         BIGINT       NOT NULL AUTO_INCREMENT,
+  `user_id`    BIGINT       NOT NULL,
+  `token`      VARCHAR(128) NOT NULL,
+  `expires_at` DATETIME(6)  NOT NULL,
+  `used`       BIT(1)       NOT NULL DEFAULT b'0',
+  `created_at` DATETIME(6)  NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_password_reset_tokens_token` (`token`),
+  KEY `idx_password_reset_tokens_user_id` (`user_id`),
+  CONSTRAINT `fk_password_reset_tokens_user`
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

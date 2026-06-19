@@ -6,10 +6,12 @@ import com.memospark.core.domain.User;
 import com.memospark.core.dto.*;
 import com.memospark.core.repository.DeckRepository;
 import com.memospark.core.repository.UserRepository;
+import com.memospark.core.service.ApiKeyService;
 import com.memospark.core.service.CardService;
 import com.memospark.core.service.DeckService;
 import com.memospark.core.service.ReviewService;
 import com.memospark.core.service.StatisticsService;
+import com.memospark.core.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,24 +44,38 @@ public class QuickAddController {
     private final DeckService deckService;
     private final StatisticsService statisticsService;
     private final ReviewService reviewService;
+    private final ApiKeyService apiKeyService;
+    private final UserService userService;
 
     // ── Auth helper ────────────────────────────────────────────────────────
 
     private User authenticate(String authHeader, String username) {
-        if (configuredApiKey.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "MEMOSPARK_API_KEY is not configured on the server");
-        }
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
                     "Missing or malformed Authorization header (expected: Bearer <key>)");
         }
-        if (!authHeader.substring(7).equals(configuredApiKey)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid API key");
+        String rawKey = authHeader.substring(7);
+
+        // 1. Try per-user API key first (hash-based lookup)
+        String hashedKey = apiKeyService.hashKey(rawKey);
+        var userOpt = userRepository.findByApiKey(hashedKey);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (username != null && !username.equals(user.getUsername())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "API key does not belong to user: " + username);
+            }
+            return user;
         }
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "User not found: " + username));
+
+        // 2. Fall back to legacy global key (if configured)
+        if (!configuredApiKey.isBlank() && rawKey.equals(configuredApiKey)) {
+            return userRepository.findByUsername(username)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "User not found: " + username));
+        }
+
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid API key");
     }
 
     // ── Endpoints ──────────────────────────────────────────────────────────

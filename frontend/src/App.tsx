@@ -5,6 +5,7 @@ import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 import Layout from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
+import PasswordResetPage from '@/pages/PasswordResetPage'
 import DecksPage from '@/pages/DecksPage'
 import ReviewPage from '@/pages/ReviewPage'
 import PracticePage from '@/pages/PracticePage'
@@ -44,6 +45,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
         <Route
           path="/"
           element={

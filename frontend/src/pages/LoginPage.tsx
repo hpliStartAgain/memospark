@@ -111,6 +111,16 @@ export default function LoginPage() {
           >
             {mode === 'login' ? t('auth.switchToRegister') : t('auth.switchToLogin')}
           </button>
+
+          {mode === 'login' && (
+            <button
+              type="button"
+              onClick={() => navigate('/password-reset')}
+              className="mt-2 w-full text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-center"
+            >
+              忘记密码？
+            </button>
+          )}
         </div>
       </div>
     </div>

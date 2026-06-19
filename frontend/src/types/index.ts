@@ -54,9 +54,6 @@ export interface ProblemDetail extends Problem {
   description: string
   javaTemplate: string
   pythonTemplate: string
-  javaDriverCode: string
-  pythonDriverCode: string
-  testCasesJson: string
 }
 
 export interface Submission {

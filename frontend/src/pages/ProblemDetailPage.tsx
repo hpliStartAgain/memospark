@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -11,6 +11,7 @@ import type { ProblemDetail, Submission, SubmitResult, TestCaseResult } from '@/
 import { difficultyBg, statusColor, formatDateTime } from '@/lib/utils'
 import { ChevronLeft, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Editor from '@monaco-editor/react'
 
 type Tab = 'description' | 'submissions'
 type Lang = 'java' | 'python'
@@ -27,7 +28,19 @@ export default function ProblemDetailPage() {
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState<{ case: number; total: number } | null>(null)
+  const [isDark, setIsDark] = useState(false)
   const esRef = useRef<EventSource | null>(null)
+
+  const codeStorageKey = `code_${id}_${lang}`
+
+  // Detect dark mode from document class
+  useEffect(() => {
+    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'))
+    checkDark()
+    const observer = new MutationObserver(checkDark)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   const { data: problem, isLoading } = useQuery<ProblemDetail>({
     queryKey: ['problem', id],
@@ -42,9 +55,23 @@ export default function ProblemDetailPage() {
 
   useEffect(() => {
     if (problem) {
-      setCode(lang === 'java' ? (problem.javaTemplate || '') : (problem.pythonTemplate || ''))
+      const saved = localStorage.getItem(codeStorageKey)
+      if (saved && saved.trim()) {
+        setCode(saved)
+      } else {
+        setCode(lang === 'java' ? (problem.javaTemplate || '') : (problem.pythonTemplate || ''))
+      }
     }
-  }, [problem, lang])
+  }, [problem, lang, codeStorageKey])
+
+  // Auto-save code to localStorage with debounce
+  useEffect(() => {
+    if (!code) return
+    const timer = setTimeout(() => {
+      localStorage.setItem(codeStorageKey, code)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [code, codeStorageKey])
 
   useEffect(() => () => { esRef.current?.close() }, [])
 
@@ -171,14 +198,21 @@ export default function ProblemDetailPage() {
           </div>
         </div>
 
-        {/* Code textarea */}
+        {/* Code editor */}
         <div className="flex-1 overflow-hidden relative">
-          <textarea
+          <Editor
+            language={lang === 'java' ? 'java' : 'python'}
+            theme={isDark ? 'vs-dark' : 'vs'}
             value={code}
-            onChange={e => setCode(e.target.value)}
-            spellCheck={false}
-            className="absolute inset-0 w-full h-full resize-none p-4 font-mono text-sm bg-gray-950 text-gray-100 focus:outline-none leading-relaxed"
-            placeholder="在这里编写你的解答..."
+            onChange={(val) => setCode(val || '')}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              scrollBeyondLastLine: false,
+              wordWrap: 'on',
+              tabSize: 4,
+              automaticLayout: true,
+            }}
           />
         </div>
 

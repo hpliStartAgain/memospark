@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layers, BookOpen, Code2, NotebookPen, BarChart3, Settings, LogOut,
-  Sun, Moon, Globe, Zap,
+  Sun, Moon, Globe, Zap, Menu, X,
 } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
@@ -14,6 +15,7 @@ export default function Layout() {
   const { user, setUser, theme, toggleTheme, lang, setLang } = useAppStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const logoutMut = useMutation({
     mutationFn: authApi.logout,
@@ -35,12 +37,45 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-primary-600" />
+          <span className="font-bold text-gray-900 dark:text-white">MemoSpark</span>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-60 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm shrink-0">
-        {/* Logo */}
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-          <Zap className="w-6 h-6 text-primary-600" />
-          <span className="text-lg font-bold text-gray-900 dark:text-white">MemoSpark</span>
+      <aside className={cn(
+        'fixed md:static z-50 md:z-auto inset-y-0 left-0 w-60 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm shrink-0 transition-transform duration-200',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      )}>
+        {/* Logo + close (mobile) */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-2">
+            <Zap className="w-6 h-6 text-primary-600" />
+            <span className="text-lg font-bold text-gray-900 dark:text-white">MemoSpark</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -49,6 +84,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) => cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
@@ -97,7 +133,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <Outlet />
       </main>
     </div>

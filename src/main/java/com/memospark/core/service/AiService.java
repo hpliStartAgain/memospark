@@ -13,8 +13,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -69,12 +73,8 @@ public class AiService {
                 """.formatted(question, referenceAnswer, userAnswer);
 
         String response = chat(prompt);
-        String json = response;
-        if (json.contains("{")) {
-            json = json.substring(json.indexOf("{"), json.lastIndexOf("}") + 1);
-        }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return extractJsonObject(response, new TypeReference<>() {});
         } catch (Exception e) {
             log.error("Failed to parse AI grade response: {}", response, e);
             return Map.of("grade", "C", "quality", 3, "feedback", response);
@@ -157,14 +157,8 @@ public class AiService {
 
         String response = chat(prompt);
 
-        // Extract JSON from response
-        String json = response;
-        if (json.contains("[")) {
-            json = json.substring(json.indexOf("["), json.lastIndexOf("]") + 1);
-        }
-
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return extractJsonArray(response, new TypeReference<>() {});
         } catch (Exception e) {
             log.error("Failed to parse AI card response: {}", response, e);
             throw new RuntimeException("AI returned invalid card format");
@@ -211,12 +205,8 @@ public class AiService {
                 """.formatted(idx - 1, lang, joined.toString());
 
         String response = chat(prompt);
-        String json = response;
-        if (json.contains("{")) {
-            json = json.substring(json.indexOf("{"), json.lastIndexOf("}") + 1);
-        }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return extractJsonObject(response, new TypeReference<>() {});
         } catch (Exception e) {
             log.error("Failed to parse AI JD analysis response: {}", response, e);
             throw new RuntimeException("AI returned invalid JD analysis format");
@@ -254,6 +244,86 @@ public class AiService {
                 """.formatted(summary);
 
         return chat(prompt);
+    }
+
+    /**
+     * Streaming chat: calls AI API with stream=true and invokes onChunk for each content delta.
+     * Returns the full accumulated text.
+     */
+    public String chatStream(String userMessage, Consumer<String> onChunk) {
+        try {
+            String body = objectMapper.writeValueAsString(Map.of(
+                    "model", model,
+                    "messages", List.of(Map.of("role", "user", "content", userMessage)),
+                    "stream", true
+            ));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .timeout(Duration.ofSeconds(timeoutSeconds))
+                    .build();
+
+            StringBuilder full = new StringBuilder();
+            httpClient.send(request, HttpResponse.BodyHandlers.ofLines())
+                    .body()
+                    .forEach(line -> {
+                        if (line.startsWith("data: ")) {
+                            String data = line.substring(6).trim();
+                            if ("[DONE]".equals(data)) return;
+                            try {
+                                JsonNode node = objectMapper.readTree(data);
+                                String delta = node.path("choices").path(0)
+                                        .path("delta").path("content").asText("");
+                                if (!delta.isEmpty()) {
+                                    full.append(delta);
+                                    onChunk.accept(delta);
+                                }
+                            } catch (Exception e) {
+                                log.debug("Failed to parse SSE chunk: {}", data);
+                            }
+                        }
+                    });
+            return full.toString();
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            log.error("AI streaming call failed", e);
+            throw new RuntimeException("AI streaming unavailable: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Generate a hint with streaming support.
+     * @param onChunk callback invoked for each text chunk as it arrives
+     * @return the full hint text
+     */
+    public String generateHintStream(String problemDescription, String userCode, int level,
+                                     Consumer<String> onChunk) {
+        String levelDesc = switch (level) {
+            case 1 -> "general direction (don't reveal the algorithm)";
+            case 2 -> "approach detail (name the algorithm/approach)";
+            case 3 -> "pseudocode-level hint";
+            default -> "general direction";
+        };
+
+        String prompt = """
+                You are a helpful coding interview tutor.
+                Give a progressive hint at level: %s.
+
+                Problem: %s
+
+                Student's current code:
+                ```
+                %s
+                ```
+
+                Reply in the same language as the problem description. Be concise.
+                """.formatted(levelDesc, problemDescription,
+                        userCode != null ? userCode : "(no code yet)");
+
+        return chatStream(prompt, onChunk);
     }
 
     private String chat(String userMessage) {
@@ -323,5 +393,39 @@ public class AiService {
         RetryableAiException(String message) {
             super(message);
         }
+    }
+
+    // ── JSON extraction helpers ───────────────────────────────────────────
+
+    private static final Pattern JSON_OBJECT_PATTERN = Pattern.compile("\\{.*}", Pattern.DOTALL);
+    private static final Pattern JSON_ARRAY_PATTERN = Pattern.compile("\\[.*\\]", Pattern.DOTALL);
+
+    private <T> T extractJsonObject(String response, TypeReference<T> typeRef) throws Exception {
+        String cleaned = stripMarkdownFences(response);
+        Matcher m = JSON_OBJECT_PATTERN.matcher(cleaned);
+        String json = m.find() ? m.group() : cleaned;
+        return objectMapper.readValue(json, typeRef);
+    }
+
+    private <T> List<Map<String, String>> extractJsonArray(String response, TypeReference<List<Map<String, String>>> typeRef) throws Exception {
+        String cleaned = stripMarkdownFences(response);
+        Matcher m = JSON_ARRAY_PATTERN.matcher(cleaned);
+        String json = m.find() ? m.group() : cleaned;
+        return objectMapper.readValue(json, typeRef);
+    }
+
+    private String stripMarkdownFences(String text) {
+        String trimmed = text.trim();
+        if (trimmed.startsWith("```")) {
+            int firstNewline = trimmed.indexOf('\n');
+            if (firstNewline > 0) {
+                trimmed = trimmed.substring(firstNewline + 1);
+            }
+            int lastFence = trimmed.lastIndexOf("```");
+            if (lastFence >= 0) {
+                trimmed = trimmed.substring(0, lastFence);
+            }
+        }
+        return trimmed.trim();
     }
 }

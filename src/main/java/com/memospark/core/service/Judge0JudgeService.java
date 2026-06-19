@@ -1,6 +1,7 @@
 package com.memospark.core.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -10,21 +11,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 
+/**
+ * Judge0 cloud-based code execution backend.
+ * Active when judge.type=judge0 (default).
+ */
 @Service
-public class JudgeService {
+@ConditionalOnProperty(name = "judge.type", havingValue = "judge0", matchIfMissing = true)
+public class Judge0JudgeService implements JudgeBackend {
 
     private static final int JAVA_LANGUAGE_ID = 62;
     private static final int PYTHON_LANGUAGE_ID = 71;
 
     private final RestClient restClient;
 
-    public JudgeService(
+    public Judge0JudgeService(
             @Value("${judge0.api.url}") String apiUrl,
             @Value("${judge0.api.key:}") String apiKey,
             @Value("${judge0.api.host:}") String apiHost
     ) {
         RestClient.Builder builder = RestClient.builder().baseUrl(apiUrl);
-        // Only add RapidAPI headers when key is provided (paid plan)
         if (apiKey != null && !apiKey.isBlank()) {
             builder.defaultHeader("X-RapidAPI-Key", apiKey);
             builder.defaultHeader("X-RapidAPI-Host", apiHost);
@@ -32,6 +37,7 @@ public class JudgeService {
         this.restClient = builder.build();
     }
 
+    @Override
     public JudgeResult execute(String sourceCode, String language, String stdin) {
         int languageId = "java".equals(language) ? JAVA_LANGUAGE_ID : PYTHON_LANGUAGE_ID;
 
@@ -78,14 +84,4 @@ public class JudgeService {
             return val.toString();
         }
     }
-
-    /**
-     * Judge0 status IDs:
-     * 3 = Accepted (code ran successfully — we still need to compare output)
-     * 5 = Time Limit Exceeded
-     * 6 = Compilation Error
-     * 7-12 = Various Runtime Errors
-     * 13 = Internal Error
-     */
-    public record JudgeResult(int statusId, String stdout, String stderr, String compileOutput) {}
 }

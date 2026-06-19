@@ -4,6 +4,7 @@ import com.memospark.core.domain.*;
 import com.memospark.core.dto.*;
 import com.memospark.core.repository.CodeProblemRepository;
 import com.memospark.core.repository.ProblemNoteRepository;
+import com.memospark.core.repository.SrsSettingsRepository;
 import com.memospark.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ public class ProblemNoteService {
     private final CodeProblemRepository problemRepository;
     private final UserRepository userRepository;
     private final SrsEngine srsEngine;
+    private final SrsSettingsRepository srsSettingsRepository;
 
     @Transactional(readOnly = true)
     public List<ProblemNoteDto> getAllNotes(Long userId) {
@@ -123,16 +125,22 @@ public class ProblemNoteService {
         note.setRetryCount(note.getRetryCount() + 1);
         note.setLastRetryDate(LocalDate.now());
 
+        // Read user's SRS settings instead of hardcoded defaults
+        SrsSettings settings = srsSettingsRepository.findByUserId(userId).orElse(null);
+        double minEase = settings != null ? settings.getMinEaseFactor() : SrsEngine.DEFAULT_MIN_EASE_FACTOR;
+        int firstInterval = settings != null ? settings.getFirstInterval() : 1;
+        int secondInterval = settings != null ? settings.getSecondInterval() : 6;
+
         double ef = srsEngine.nextEaseFactor(
-                note.getEaseFactor(), quality, SrsEngine.DEFAULT_MIN_EASE_FACTOR);
+                note.getEaseFactor(), quality, minEase);
         note.setEaseFactor(ef);
 
         if (quality >= 3) {
             // repetitions is 0-based: retryCount was just incremented, so subtract 1.
             note.setRetryInterval(srsEngine.nextIntervalOnSuccess(
-                    note.getRetryCount() - 1, note.getRetryInterval(), ef, 1, 6));
+                    note.getRetryCount() - 1, note.getRetryInterval(), ef, firstInterval, secondInterval));
         } else {
-            note.setRetryInterval(1);
+            note.setRetryInterval(firstInterval);
         }
 
         note.setNextRetryDate(LocalDate.now().plusDays(note.getRetryInterval()));
