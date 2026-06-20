@@ -127,6 +127,24 @@ export const aiApi = {
     api.post('/ai/jd/generate-cards', { deckName, topic, count, language }).then(r => r.data),
 }
 
+// ── Targets (interview prep) ────────────────────────────────────────────────
+export const targetApi = {
+  list:        () => api.get('/targets').then(r => r.data),
+  get:         (id: number) => api.get(`/targets/${id}`).then(r => r.data),
+  create:      (body: object) => api.post('/targets', body).then(r => r.data),
+  update:      (id: number, body: object) => api.put(`/targets/${id}`, body).then(r => r.data),
+  remove:      (id: number) => api.delete(`/targets/${id}`),
+  addJd:       (id: number, body: object) => api.post(`/targets/${id}/jds`, body).then(r => r.data),
+  removeJd:    (id: number, jdId: number) => api.delete(`/targets/${id}/jds/${jdId}`),
+  analyze:     (id: number, language: string, replace: boolean) =>
+    api.post(`/targets/${id}/analyze`, { language, replace }).then(r => r.data),
+  addSkill:    (id: number, body: object) => api.post(`/targets/${id}/skills`, body).then(r => r.data),
+  updateSkill: (id: number, skillId: number, body: object) =>
+    api.put(`/targets/${id}/skills/${skillId}`, body).then(r => r.data),
+  removeSkill: (id: number, skillId: number) => api.delete(`/targets/${id}/skills/${skillId}`),
+  readiness:   (id: number) => api.get(`/targets/${id}/readiness`).then(r => r.data),
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────
 export const settingsApi = {
   getSrs:    () => api.get('/settings/srs').then(r => r.data),

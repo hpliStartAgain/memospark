@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
@@ -37,7 +38,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper objectMapper,
+                                           JwtAuthFilter jwtAuthFilter) throws Exception {
         // CSRF: cookie-based so SPA can read XSRF-TOKEN and send X-XSRF-TOKEN header.
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName(null);
@@ -48,8 +50,14 @@ public class SecurityConfig {
                 .csrfTokenRequestHandler(requestHandler)
                 .ignoringRequestMatchers(
                         "/api/auth/login", "/api/auth/register",
+                        "/api/auth/wx-login", "/api/auth/token",
                         "/api/quick-add/**"   // Bearer-auth, stateless — no CSRF needed
                 )
+                // Requests carrying a Bearer JWT never need CSRF (custom header = safe)
+                .ignoringRequestMatchers(req -> {
+                    String auth = req.getHeader("Authorization");
+                    return auth != null && auth.startsWith("Bearer ");
+                })
             )
             .authorizeHttpRequests(auth -> auth
                 // Auth endpoints & static SPA assets
@@ -59,6 +67,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/", "/index.html", "/login",
                     "/assets/**", "/*.js", "/*.css", "/*.ico", "/*.png", "/*.svg",
+                    "/manifest.webmanifest", "/sw.js",
+                    "/dashboard/**", "/targets/**",
                     "/decks/**", "/review/**", "/practice/**", "/notebook/**",
                     "/stats/**", "/settings/**"
                 ).permitAll()
@@ -88,6 +98,7 @@ public class SecurityConfig {
                             Map.of("error", "Access denied"));
                 })
             )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .logout(logout -> logout
                 .logoutUrl("/api/auth/logout")
                 .logoutSuccessHandler((request, response, authentication) -> {

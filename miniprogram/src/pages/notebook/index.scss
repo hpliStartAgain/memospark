@@ -1,0 +1,158 @@
+.notebook-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding-bottom: 40px;
+}
+
+.nb-header {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  padding: 32px 32px 40px;
+
+  .nb-title {
+    font-size: 40px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 20px;
+  }
+
+  .nb-stats {
+    display: flex;
+    gap: 16px;
+
+    .nb-stat {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 20px;
+      text-align: center;
+
+      .ns-value {
+        font-size: 36px;
+        font-weight: 700;
+        color: #ffffff;
+        display: block;
+      }
+
+      .ns-label {
+        font-size: 20px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 2px;
+        display: block;
+      }
+    }
+  }
+}
+
+.filter-tabs {
+  display: flex;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .tab-item {
+    flex: 1;
+    padding: 24px 0;
+    text-align: center;
+    font-size: 26px;
+    color: #94a3b8;
+    font-weight: 500;
+    border-bottom: 3px solid transparent;
+
+    &.active {
+      color: #0ea5e9;
+      border-bottom-color: #0ea5e9;
+      font-weight: 700;
+    }
+  }
+}
+
+.note-list {
+  padding: 24px;
+}
+
+.note-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .note-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+
+    .note-badge {
+      font-size: 20px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+
+      &.wrong   { background: #fee2e2; color: #ef4444; }
+      &.starred { background: #fef9c3; color: #ca8a04; }
+      &.todo    { background: #dbeafe; color: #2563eb; }
+    }
+
+    .note-title {
+      flex: 1;
+      font-size: 28px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+
+    .diff-badge {
+      font-size: 20px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      flex-shrink: 0;
+
+      &.easy   { background: #d1fae5; color: #059669; }
+      &.medium { background: #fef3c7; color: #d97706; }
+      &.hard   { background: #fee2e2; color: #ef4444; }
+    }
+  }
+
+  .note-text {
+    font-size: 24px;
+    color: #64748b;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  .note-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #f8fafc;
+
+    .due-tag {
+      font-size: 20px;
+      color: #f59e0b;
+      background: #fef3c7;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .retry-btns {
+      display: flex;
+      gap: 8px;
+
+      .retry-btn {
+        font-size: 20px;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+
+        &.hard  { background: #fee2e2; color: #ef4444; }
+        &.good  { background: #d1fae5; color: #059669; }
+        &.easy  { background: #dbeafe; color: #2563eb; }
+      }
+    }
+  }
+}

@@ -1,0 +1,214 @@
+.detail-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding-bottom: 60px;
+}
+
+.detail-header {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  padding: 32px 32px 48px;
+
+  .company-name {
+    font-size: 44px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .position-name {
+    font-size: 30px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 6px;
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+
+    .status-tag {
+      font-size: 22px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .date-tag {
+      font-size: 22px;
+      color: rgba(255, 255, 255, 0.75);
+    }
+  }
+}
+
+.readiness-banner {
+  margin: -24px 24px 0;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+
+  .rb-scores {
+    flex: 1;
+    display: flex;
+    gap: 0;
+
+    .rb-score-item {
+      flex: 1;
+      text-align: center;
+      border-right: 1px solid #f1f5f9;
+
+      &:last-child { border-right: none; }
+
+      .rb-value {
+        font-size: 36px;
+        font-weight: 700;
+        color: #0ea5e9;
+        display: block;
+      }
+
+      .rb-label {
+        font-size: 20px;
+        color: #94a3b8;
+        margin-top: 4px;
+        display: block;
+      }
+    }
+  }
+
+  .rb-overall {
+    text-align: center;
+    flex-shrink: 0;
+
+    .rb-big {
+      font-size: 52px;
+      font-weight: 700;
+      color: #0ea5e9;
+      display: block;
+    }
+
+    .rb-big-label {
+      font-size: 20px;
+      color: #94a3b8;
+    }
+  }
+}
+
+.section {
+  margin: 28px 24px 0;
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    .section-title {
+      font-size: 30px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .section-action {
+      font-size: 24px;
+      color: #0ea5e9;
+      padding: 6px 16px;
+      background: #eff6ff;
+      border-radius: 20px;
+    }
+  }
+}
+
+.skill-item {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .skill-info {
+    flex: 1;
+
+    .skill-name {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .skill-desc {
+      font-size: 22px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+  }
+
+  .skill-level {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    .level-dots {
+      display: flex;
+      gap: 6px;
+
+      .dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e2e8f0;
+
+        &.filled { background: #0ea5e9; }
+      }
+    }
+
+    .level-text {
+      font-size: 20px;
+      color: #94a3b8;
+    }
+  }
+}
+
+.analyze-btn {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 28px 0;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 600;
+  margin: 0 24px;
+}
+
+.jd-item {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  .jd-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+
+  .jd-preview {
+    font-size: 24px;
+    color: #94a3b8;
+    margin-top: 8px;
+  }
+
+  .jd-date {
+    font-size: 20px;
+    color: #cbd5e1;
+    margin-top: 8px;
+  }
+}

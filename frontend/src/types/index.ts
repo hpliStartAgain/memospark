@@ -127,3 +127,58 @@ export interface TestCaseResult {
   expectedOutput: string
   actualOutput: string
 }
+
+export type TargetStatus = 'PREPARING' | 'INTERVIEWING' | 'CLOSED'
+
+export interface TargetSummary {
+  id: number
+  title: string
+  company?: string
+  status: TargetStatus
+  interviewDate?: string
+  daysUntilInterview?: number
+  jdCount: number
+  skillCount: number
+  readiness: number
+}
+
+export interface JobJd {
+  id: number
+  title?: string
+  content: string
+  source?: string
+  createdAt: string
+}
+
+export interface TargetSkill {
+  id: number
+  name: string
+  category?: string
+  description?: string
+  weight: number
+  selfLevel: number
+}
+
+export interface Readiness {
+  overall: number
+  skillCoverage: number
+  cardHealth: number
+  wrongClear: number
+  dueCards: number
+  dueNotes: number
+  weakSkills: number
+  daysUntilInterview?: number
+}
+
+export interface TargetDetail {
+  id: number
+  title: string
+  company?: string
+  status: TargetStatus
+  interviewDate?: string
+  daysUntilInterview?: number
+  notes?: string
+  jds: JobJd[]
+  skills: TargetSkill[]
+  readiness: Readiness
+}

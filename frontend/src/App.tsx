@@ -6,6 +6,9 @@ import { useAppStore } from '@/store/appStore'
 import Layout from '@/components/Layout'
 import LoginPage from '@/pages/LoginPage'
 import PasswordResetPage from '@/pages/PasswordResetPage'
+import DashboardPage from '@/pages/DashboardPage'
+import TargetsPage from '@/pages/TargetsPage'
+import TargetDetailPage from '@/pages/TargetDetailPage'
 import DecksPage from '@/pages/DecksPage'
 import ReviewPage from '@/pages/ReviewPage'
 import PracticePage from '@/pages/PracticePage'
@@ -54,7 +57,9 @@ export default function App() {
             </AuthGuard>
           }
         >
-          <Route index element={<Navigate to="/decks" replace />} />
+          <Route index element={<DashboardPage />} />
+          <Route path="targets" element={<TargetsPage />} />
+          <Route path="targets/:id" element={<TargetDetailPage />} />
           <Route path="decks" element={<DecksPage />} />
           <Route path="review" element={<ReviewPage />} />
           <Route path="review/:deckId" element={<ReviewPage />} />
@@ -64,7 +69,7 @@ export default function App() {
           <Route path="stats" element={<StatsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/decks" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Taro build output
+dist/
+.temp/
+.rn_temp/
+.swc/
+
+# Logs & caches
+*.log
+.DS_Store
+
+# Local env overrides
+.env
+.env.local

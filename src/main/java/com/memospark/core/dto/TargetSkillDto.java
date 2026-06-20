@@ -1,0 +1,10 @@
+package com.memospark.core.dto;
+
+public record TargetSkillDto(
+        Long id,
+        String name,
+        String category,
+        String description,
+        int weight,
+        int selfLevel
+) {}

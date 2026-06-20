@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layers, BookOpen, Code2, NotebookPen, BarChart3, Settings, LogOut,
-  Sun, Moon, Globe, Zap, Menu, X,
+  Sun, Moon, Globe, Zap, Menu, X, LayoutDashboard, Target,
 } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
@@ -27,13 +27,18 @@ export default function Layout() {
   })
 
   const navItems = [
-    { to: '/decks',    icon: Layers,       label: t('nav.decks') },
-    { to: '/review',   icon: BookOpen,     label: t('nav.review') },
-    { to: '/practice', icon: Code2,        label: t('nav.practice') },
-    { to: '/notebook', icon: NotebookPen,  label: t('nav.notebook') },
-    { to: '/stats',    icon: BarChart3,    label: t('nav.stats') },
-    { to: '/settings', icon: Settings,     label: t('nav.settings') },
+    { to: '/',         icon: LayoutDashboard, label: t('nav.dashboard'), end: true },
+    { to: '/targets',  icon: Target,          label: t('nav.targets') },
+    { to: '/decks',    icon: Layers,          label: t('nav.decks') },
+    { to: '/review',   icon: BookOpen,        label: t('nav.review') },
+    { to: '/practice', icon: Code2,           label: t('nav.practice') },
+    { to: '/notebook', icon: NotebookPen,     label: t('nav.notebook') },
+    { to: '/stats',    icon: BarChart3,       label: t('nav.stats') },
+    { to: '/settings', icon: Settings,        label: t('nav.settings') },
   ]
+
+  const mobileNavItems = navItems.filter(i =>
+    ['/', '/targets', '/review', '/practice', '/notebook'].includes(i.to))
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -80,10 +85,11 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
+              end={end}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) => cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
@@ -133,9 +139,27 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
+      <main className="flex-1 overflow-y-auto pt-14 md:pt-0 pb-16 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+        {mobileNavItems.map(({ to, icon: Icon, label, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) => cn(
+              'flex flex-col items-center gap-0.5 py-2 px-2 flex-1 text-[10px] font-medium transition-colors',
+              isActive ? 'text-primary-600' : 'text-gray-400',
+            )}
+          >
+            <Icon className="w-5 h-5" />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }

@@ -1,9 +1,10 @@
 # MemoSpark
 
-基于间隔重复（SRS）的记忆与刷题练习平台，包含内置 LeetCode Hot 100 题库、闪卡复习、代码评测、AI 辅助，以及可接入 AI 助手（Claude Desktop / Windsurf 等）的 MCP Server。
+基于间隔重复（SRS）的记忆与刷题练习平台，包含内置 LeetCode Hot 100 题库、闪卡复习、代码评测、AI 辅助，以及面试「目标岗位」管理——录入 JD、AI 拆解技能图谱、按权重自评并计算面试就绪度。提供 Web（含 PWA 离线/可安装）、微信小程序两个端，并可接入 AI 助手（Claude Desktop / Windsurf 等）的 MCP Server。
 
-**后端**：Spring Boot 4.0.5 · Java 17 · Spring Data JPA · Spring Security · Flyway · MySQL 8 · Lombok · Jackson  
-**前端**：React 18 + TypeScript · Vite · Tailwind CSS · Zustand  
+**后端**：Spring Boot 4.0.5 · Java 21 · Spring Data JPA · Spring Security · Flyway · MySQL 8 · Lombok · Jackson · JWT（jjwt）  
+**前端**：React 18 + TypeScript · Vite · Tailwind CSS · Zustand · PWA（manifest + service worker）  
+**小程序**：微信小程序（Taro 3 + React），见 `miniprogram/`  
 **MCP Server**：Node.js 18+ · TypeScript · `@modelcontextprotocol/sdk`
 
 ## 目录
@@ -20,7 +21,7 @@
 
 前置依赖：
 
-- JDK 17+
+- JDK 21+
 - Maven Wrapper（已自带 `mvnw` / `mvnw.cmd`）
 - MySQL 8（本地不存在数据库时会自动创建）
 - Node.js 18+（仅使用 MCP Server 时需要）
@@ -108,6 +109,24 @@ java -jar target/memospark-0.0.1-SNAPSHOT.jar
 | -------- | ------ | ---- |
 | `LOGIN_MAX_ATTEMPTS` | `5` | 账号连续失败锁定阈值 |
 | `LOGIN_LOCKOUT_MINUTES` | `15` | 锁定时长（分钟）|
+
+### JWT（小程序 / 无状态客户端登录）
+
+Web 端走 Session + CSRF；小程序等无状态客户端走 `Authorization: Bearer <JWT>`。
+
+| 环境变量 | 默认值 | 说明 |
+| -------- | ------ | ---- |
+| `JWT_SECRET` | `memospark-dev-secret-change-in-production!!` | HMAC 签名密钥，**至少 32 字符**；生产务必覆盖 |
+| `JWT_EXPIRY_DAYS` | `30` | Token 有效期（天）|
+
+### 微信小程序登录
+
+| 环境变量 | 默认值 | 说明 |
+| -------- | ------ | ---- |
+| `WX_APP_ID` | _(空，禁用)_ | 小程序 AppID；与下方 secret 同时配置后启用 `/api/auth/wx-login` |
+| `WX_APP_SECRET` | _(空，禁用)_ | 小程序 AppSecret |
+
+> 未配置 `WX_APP_ID` / `WX_APP_SECRET` 时，`/api/auth/wx-login` 返回 503；小程序仍可用账号密码经 `/api/auth/token` 登录。
 
 ### JPA / Hibernate 关键配置
 
@@ -215,14 +234,19 @@ memospark/
 ├── src/main/java/com/memospark/core/
 │   ├── MemosparkApplication.java        # 启动入口 + ObjectMapper Bean
 │   ├── config/                          # Security / Web / CORS 等配置
+│   │   ├── JwtService.java              # JWT 签发 / 校验（HMAC）
+│   │   ├── JwtAuthFilter.java           # Bearer Token 鉴权过滤器
+│   │   └── HttpClientConfig.java        # 带超时的 RestTemplate（微信等出站调用）
 │   ├── controller/
 │   │   ├── QuickAddController.java      # Quick-Add API（Bearer 鉴权）
+│   │   ├── WxAuthController.java        # 微信登录 / Token 登录（无状态 JWT）
+│   │   ├── TargetController.java        # 目标岗位 / JD / 技能 / 就绪度
 │   │   ├── DeckController.java
 │   │   ├── ReviewController.java
 │   │   ├── AiController.java
 │   │   ├── PracticeController.java      # 代码题评测
 │   │   └── ...
-│   ├── domain/                          # JPA 实体（User、Deck、Card、CodeProblem...）
+│   ├── domain/                          # JPA 实体（User、Deck、Card、Target、JobJd、TargetSkill...）
 │   ├── dto/                             # 请求 / 响应 DTO
 │   ├── init/                            # 启动期初始化
 │   │   ├── AdminInitializer.java
@@ -234,6 +258,9 @@ memospark/
 │       ├── SpacedRepetitionService.java # 闪卡 SRS（复用 SrsEngine）
 │       ├── ProblemNoteService.java      # 题目笔记 SRS（复用 SrsEngine）
 │       ├── AiService.java               # AI 调用（重试 + 超时 + 注入 ObjectMapper）
+│       ├── TargetService.java           # 目标 / JD / 技能聚合
+│       ├── TargetSkillService.java      # 由 JD 分析落库为技能项
+│       ├── ReadinessService.java        # 面试就绪度评分（技能 / 卡片 / 错题）
 │       ├── JudgeOrchestrator.java       # 并行多测试用例评测 + 状态聚合
 │       ├── ReviewService.java
 │       ├── DeckService.java
@@ -241,12 +268,16 @@ memospark/
 │       └── ...
 ├── src/main/resources/
 │   ├── application.properties           # 主配置（全量环境变量）
-│   └── db/migration/                    # Flyway SQL 迁移脚本
-├── frontend/                            # React 18 + TypeScript + Vite + Tailwind
+│   ├── db/migration/                    # Flyway SQL 迁移脚本（V1..V5）
+│   └── static/                          # 前端构建产物 + PWA（manifest / sw.js）
+├── frontend/                            # React 18 + TypeScript + Vite + Tailwind（PWA）
+│   ├── public/                          # PWA manifest / service worker / 图标
 │   └── src/
-│       ├── pages/                       # 各功能页面
+│       ├── pages/                       # 各功能页面（Dashboard、Targets...）
+│       ├── components/                  # 复用组件（ReadinessRing...）
 │       ├── store/                       # Zustand 状态管理
 │       └── api/                         # API 请求层
+├── miniprogram/                         # 微信小程序（Taro 3 + React），见其 README
 └── mcp-server/                          # MCP Server（AI 助手集成）
     ├── src/index.ts                     # 9 个 MCP 工具
     ├── package.json

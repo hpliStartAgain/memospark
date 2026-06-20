@@ -1,0 +1,30 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "MemoSpark",
+  "description": "MemoSpark — 备战面试记忆助手",
+  "appid": "YOUR_WECHAT_APPID",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "newFeature": false,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "scopeDataCheck": false,
+    "uploadWithSourceMap": true,
+    "compileHotReLoad": false,
+    "useMultiFrameRuntime": true,
+    "useApiHook": true,
+    "checkInvalidKey": true,
+    "checkSiteMap": false,
+    "ignoreUploadUnusedFiles": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "2.32.3",
+  "srcMiniprogramRoot": "dist/",
+  "condition": {}
+}

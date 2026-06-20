@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -100,6 +101,23 @@ public class UserService implements UserDetailsService {
 
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream().map(this::toDto).toList();
+    }
+
+    @Transactional
+    public User findOrCreateByWxOpenid(String openid) {
+        return userRepository.findByWxOpenid(openid).orElseGet(() -> {
+            String base = "wx_" + openid.substring(0, Math.min(8, openid.length()));
+            String username = base;
+            int i = 1;
+            while (userRepository.existsByUsername(username)) {
+                username = base + i++;
+            }
+            User u = new User(username, passwordEncoder.encode(UUID.randomUUID().toString()), UserRole.USER);
+            u.setWxOpenid(openid);
+            u = userRepository.save(u);
+            copyBuiltinDecks(u);
+            return u;
+        });
     }
 
     @Transactional

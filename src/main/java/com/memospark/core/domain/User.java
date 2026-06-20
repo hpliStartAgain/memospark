@@ -34,6 +34,9 @@ public class User {
     @Column(length = 128, unique = true)
     private String apiKey;
 
+    @Column(name = "wx_openid", length = 64, unique = true)
+    private String wxOpenid;
+
     public User(String username, String password, UserRole role) {
         this.username = username;
         this.password = password;

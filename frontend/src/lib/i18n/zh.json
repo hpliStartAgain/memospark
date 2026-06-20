@@ -1,6 +1,8 @@
 {
   "app": { "name": "MemoSpark" },
   "nav": {
+    "dashboard": "驾驶舱",
+    "targets": "目标岗位",
     "decks": "牌组",
     "review": "复习",
     "practice": "算法",
