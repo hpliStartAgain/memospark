@@ -123,12 +123,24 @@ public class PracticeController {
     }
 
     public record RetryRequest(int quality) {}
+    public record ConvertToCardRequest(Long deckId) {}
 
     @PostMapping("/notebook/{problemId}/retry")
     public ProblemNoteDto recordRetry(@PathVariable Long problemId,
                                       @RequestBody RetryRequest req,
                                       @CurrentUser UserPrincipal principal) {
         return noteService.recordRetry(principal.id(), problemId, req.quality());
+    }
+
+    @PostMapping("/notebook/{problemId}/to-card")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ReviewCardDto convertToCard(@PathVariable Long problemId,
+                                       @RequestBody ConvertToCardRequest req,
+                                       @CurrentUser UserPrincipal principal) {
+        if (req.deckId() == null) {
+            throw new IllegalArgumentException("deckId is required");
+        }
+        return noteService.convertToCard(principal.id(), problemId, req.deckId());
     }
 
     @PostMapping("/notebook/ai-analysis")
@@ -145,7 +157,7 @@ public class PracticeController {
         data.categoryCounts().forEach((k, v) -> summary.append(k).append("=").append(v).append(", "));
         summary.append("\nTotal wrong problems: ").append(data.totalWrong());
 
-        String aiText = aiService.analyzeWeakness(summary.toString());
+        String aiText = aiService.analyzeWeakness(summary.toString(), principal.id());
         return new WeaknessAnalysisDto(data.errorReasonCounts(), data.categoryCounts(), data.totalWrong(), aiText);
     }
 }

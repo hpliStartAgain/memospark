@@ -133,6 +133,7 @@
     "minEase": "Min Ease Factor",
     "firstInterval": "First Interval (days)",
     "secondInterval": "Second Interval (days)",
+    "desiredRetention": "Desired Retention",
     "save": "Save",
     "saved": "Saved",
     "theme": "Theme",

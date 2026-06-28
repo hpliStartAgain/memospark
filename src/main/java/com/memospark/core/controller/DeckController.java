@@ -93,6 +93,20 @@ public class DeckController {
         return cardService.createCard(id, req, principal.id(), principal.admin());
     }
 
+    @PostMapping("/{id}/cards/from-text")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<ReviewCardDto> generateCardsFromText(@PathVariable Long id,
+                                                     @RequestBody GenerateCardsFromTextRequest req,
+                                                     @CurrentUser UserPrincipal principal) {
+        return cardService.generateCardsFromText(
+                id,
+                req.text(),
+                req.count(),
+                req.language(),
+                principal.id(),
+                principal.admin());
+    }
+
     @PutMapping("/{id}/cards/{cid}")
     public ReviewCardDto updateCard(@PathVariable Long id, @PathVariable Long cid,
                                      @RequestBody CreateCardRequest req,

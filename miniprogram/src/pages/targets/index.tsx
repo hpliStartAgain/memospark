@@ -4,24 +4,13 @@ import { View, Text, Input } from '@tarojs/components'
 import { targetApi } from '../../api'
 import { store } from '../../store'
 import type { TargetSummary } from '../../types'
+import { targetStatusClass, targetStatusLabel } from '../../utils/targetStatus'
 import './index.scss'
 
 function readinessClass(score: number) {
   if (score >= 70) return 'high'
   if (score >= 40) return 'medium'
   return 'low'
-}
-
-function statusLabel(status: string) {
-  if (status === 'PREPARING') return '备战中'
-  if (status === 'INTERVIEWING') return '面试中'
-  return '已结束'
-}
-
-function statusClass(status: string) {
-  if (status === 'PREPARING') return 'preparing'
-  if (status === 'INTERVIEWING') return 'interviewing'
-  return 'closed'
 }
 
 export default function TargetsPage() {
@@ -109,8 +98,8 @@ export default function TargetsPage() {
                 <Text className='company'>{t.company}</Text>
                 <Text className='position'>{t.title}</Text>
                 <View className='target-meta'>
-                  <Text className={`status-badge ${statusClass(t.status)}`}>
-                    {statusLabel(t.status)}
+                  <Text className={`status-badge ${targetStatusClass(t.status)}`}>
+                    {targetStatusLabel(t.status)}
                   </Text>
                   <Text className='meta-text'>{t.skillCount} 技能</Text>
                   {t.interviewDate ? (

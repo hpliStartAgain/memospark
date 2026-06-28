@@ -72,8 +72,14 @@
         font-weight: 600;
 
         &.preparing    { background: #dbeafe; color: #2563eb; }
+        &.applied      { background: #e0f2fe; color: #0284c7; }
+        &.written      { background: #fef3c7; color: #d97706; }
         &.interviewing { background: #d1fae5; color: #059669; }
+        &.hr           { background: #ede9fe; color: #7c3aed; }
+        &.offer        { background: #dcfce7; color: #16a34a; }
+        &.rejected     { background: #fee2e2; color: #dc2626; }
         &.closed       { background: #f1f5f9; color: #94a3b8; }
+        &.unknown      { background: #f1f5f9; color: #64748b; }
       }
 
       .meta-text {

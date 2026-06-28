@@ -6,6 +6,7 @@ import com.memospark.core.domain.TargetSkill;
 import com.memospark.core.domain.TargetStatus;
 import com.memospark.core.domain.User;
 import com.memospark.core.dto.*;
+import com.memospark.core.repository.CardRepository;
 import com.memospark.core.repository.JobJdRepository;
 import com.memospark.core.repository.TargetRepository;
 import com.memospark.core.repository.TargetSkillRepository;
@@ -27,6 +28,7 @@ public class TargetService {
     private final JobJdRepository jobJdRepository;
     private final TargetSkillRepository targetSkillRepository;
     private final UserRepository userRepository;
+    private final CardRepository cardRepository;
     private final ReadinessService readinessService;
     private final TargetSkillService targetSkillService;
 
@@ -71,8 +73,24 @@ public class TargetService {
     }
 
     @Transactional
+    public TargetDetailDto updateStatus(Long id, Long userId, boolean admin, UpdateTargetStatusRequest req) {
+        Target target = getOwned(id, userId, admin);
+        if (req == null || req.status() == null || req.status().isBlank()) {
+            throw new IllegalArgumentException("Status is required");
+        }
+        TargetStatus parsed = parseStatus(req.status(), null);
+        if (parsed == null) {
+            throw new IllegalArgumentException("Invalid target status");
+        }
+        target.setStatus(parsed);
+        targetRepository.save(target);
+        return toDetail(target, userId);
+    }
+
+    @Transactional
     public void delete(Long id, Long userId, boolean admin) {
         Target target = getOwned(id, userId, admin);
+        targetSkillService.deleteSkillsAndDecks(id);
         targetRepository.delete(target);
     }
 
@@ -138,12 +156,20 @@ public class TargetService {
     public void deleteSkill(Long targetId, Long skillId, Long userId, boolean admin) {
         getOwned(targetId, userId, admin);
         TargetSkill skill = getOwnedSkill(targetId, skillId);
-        targetSkillRepository.delete(skill);
+        targetSkillService.deleteSkillWithDeck(skill);
     }
 
     @Transactional(readOnly = true)
     public ReadinessDto getReadiness(Long targetId, Long userId, boolean admin) {
         return readinessService.compute(getOwned(targetId, userId, admin), userId);
+    }
+
+    @Transactional
+    public TargetSkillDto generateSkillCards(Long targetId, Long skillId, Long userId, boolean admin, String language) {
+        getOwned(targetId, userId, admin);
+        TargetSkill skill = getOwnedSkill(targetId, skillId);
+        targetSkillService.generateCardsForSkill(skill, (language != null && !language.isBlank()) ? language : "zh");
+        return toSkillDto(skill);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -195,8 +221,10 @@ public class TargetService {
     }
 
     private TargetSkillDto toSkillDto(TargetSkill s) {
+        Long deckId = s.getDeck() != null ? s.getDeck().getId() : null;
+        long cardCount = deckId != null ? cardRepository.countByDeckId(deckId) : 0L;
         return new TargetSkillDto(s.getId(), s.getName(), s.getCategory(),
-                s.getDescription(), s.getWeight(), s.getSelfLevel());
+                s.getDescription(), s.getWeight(), s.getSelfLevel(), deckId, cardCount);
     }
 
     private Long daysUntil(LocalDate date) {

@@ -14,3 +14,4 @@ dist/
 # Local env overrides
 .env
 .env.local
+project.private.config.json

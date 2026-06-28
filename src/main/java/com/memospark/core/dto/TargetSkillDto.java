@@ -6,5 +6,7 @@ public record TargetSkillDto(
         String category,
         String description,
         int weight,
-        int selfLevel
+        int selfLevel,
+        Long deckId,
+        long cardCount
 ) {}

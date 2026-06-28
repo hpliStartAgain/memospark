@@ -5,6 +5,7 @@ public record ReadinessDto(
         int skillCoverage,
         int cardHealth,
         int wrongClear,
+        int mockPerformance,
         long dueCards,
         long dueNotes,
         long weakSkills,

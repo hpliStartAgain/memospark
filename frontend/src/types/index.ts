@@ -35,6 +35,20 @@ export interface Card {
   isNew: boolean
 }
 
+export interface ReviewCard {
+  cardId: number
+  deckId: number
+  deckName: string
+  front: string
+  back: string
+  tags?: string
+  repetitions: number
+  easeFactor: number
+  interval: number
+  nextReviewDate?: string
+  isNew: boolean
+}
+
 export interface Problem {
   id: number
   problemNumber: number
@@ -105,6 +119,15 @@ export interface SrsSettings {
   minEaseFactor: number
   firstInterval: number
   secondInterval: number
+  desiredRetention: number
+}
+
+export interface AiSettings {
+  provider: string
+  baseUrl: string
+  model: string
+  apiKeyConfigured: boolean
+  apiKeyMasked?: string
 }
 
 export interface GeneratedCard {
@@ -128,7 +151,17 @@ export interface TestCaseResult {
   actualOutput: string
 }
 
-export type TargetStatus = 'PREPARING' | 'INTERVIEWING' | 'CLOSED'
+export type TargetStatus =
+  | 'PREPARING'
+  | 'APPLIED'
+  | 'WRITTEN_TEST'
+  | 'INTERVIEW_1'
+  | 'INTERVIEW_2'
+  | 'HR'
+  | 'OFFER'
+  | 'REJECTED'
+  | 'INTERVIEWING'
+  | 'CLOSED'
 
 export interface TargetSummary {
   id: number
@@ -157,6 +190,8 @@ export interface TargetSkill {
   description?: string
   weight: number
   selfLevel: number
+  deckId?: number | null
+  cardCount: number
 }
 
 export interface Readiness {
@@ -164,6 +199,7 @@ export interface Readiness {
   skillCoverage: number
   cardHealth: number
   wrongClear: number
+  mockPerformance: number
   dueCards: number
   dueNotes: number
   weakSkills: number
@@ -181,4 +217,33 @@ export interface TargetDetail {
   jds: JobJd[]
   skills: TargetSkill[]
   readiness: Readiness
+}
+
+export type MockInterviewType = 'MIXED' | 'BEHAVIORAL' | 'TECHNICAL' | 'SYSTEM_DESIGN'
+export type MockInterviewStatus = 'IN_PROGRESS' | 'FINISHED'
+
+export interface MockInterviewQuestion {
+  id: number
+  questionOrder: number
+  dimension: string
+  question: string
+  rubric?: string
+  userAnswer?: string
+  score?: number
+  feedback?: string
+  answeredAt?: string
+}
+
+export interface MockInterview {
+  id: number
+  targetId: number
+  type: MockInterviewType
+  status: MockInterviewStatus
+  questionCount: number
+  answeredCount: number
+  averageScore?: number
+  summaryFeedback?: string
+  startedAt: string
+  finishedAt?: string
+  questions: MockInterviewQuestion[]
 }

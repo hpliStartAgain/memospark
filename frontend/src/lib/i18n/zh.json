@@ -133,6 +133,7 @@
     "minEase": "最低难度系数",
     "firstInterval": "首次间隔（天）",
     "secondInterval": "第二次间隔（天）",
+    "desiredRetention": "目标留存率",
     "save": "保存",
     "saved": "已保存",
     "theme": "主题",

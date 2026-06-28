@@ -13,7 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 /**
- * SM-2 algorithm with configurable per-user parameters.
+ * Flashcard scheduling service.
+ *
+ * <p>Scheduling uses FSRS stability/difficulty/retention. The legacy SM-2 ease
+ * factor is still updated as a compatibility signal for existing UI and data.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,7 @@ public class SpacedRepetitionService {
 
     private final SrsSettingsRepository settingsRepository;
     private final UserRepository userRepository;
+    private final FsrsEngine fsrsEngine;
     private final SrsEngine srsEngine;
 
     private SrsSettings getSettings(Long userId) {
@@ -41,22 +45,28 @@ public class SpacedRepetitionService {
         int repetitions = progress.getRepetitions();
         double easeFactor = srsEngine.nextEaseFactor(
                 progress.getEaseFactor(), quality, settings.getMinEaseFactor());
-        int interval;
+        FsrsEngine.FsrsResult fsrs = fsrsEngine.next(
+                new FsrsEngine.CardMemory(
+                        progress.getStability(),
+                        progress.getDifficulty(),
+                        progress.getLastReviewDate()),
+                quality,
+                LocalDate.now(),
+                normalizedDesiredRetention(settings.getDesiredRetention()),
+                settings.getFirstInterval());
 
         if (quality >= 3) {
-            interval = srsEngine.nextIntervalOnSuccess(
-                    repetitions, progress.getInterval(), easeFactor,
-                    settings.getFirstInterval(), settings.getSecondInterval());
             repetitions++;
         } else {
             repetitions = 0;
-            interval = settings.getFirstInterval();
         }
 
         progress.setRepetitions(repetitions);
         progress.setEaseFactor(easeFactor);
-        progress.setInterval(interval);
-        progress.setNextReviewDate(LocalDate.now().plusDays(interval));
+        progress.setStability(fsrs.stability());
+        progress.setDifficulty(fsrs.difficulty());
+        progress.setInterval(fsrs.interval());
+        progress.setNextReviewDate(LocalDate.now().plusDays(fsrs.interval()));
         if (progress.getLastReviewDate() == null) {
             progress.setFirstLearnedDate(LocalDate.now());
         }
@@ -69,6 +79,8 @@ public class SpacedRepetitionService {
         SrsSettings settings = getSettings(userId);
         progress.setRepetitions(0);
         progress.setEaseFactor(settings.getInitialEaseFactor());
+        progress.setStability(FsrsEngine.DEFAULT_STABILITY);
+        progress.setDifficulty(FsrsEngine.DEFAULT_DIFFICULTY);
         progress.setInterval(0);
         progress.setNextReviewDate(LocalDate.now());
         progress.setLastReviewDate(null);
@@ -76,7 +88,12 @@ public class SpacedRepetitionService {
 
     public SrsSettingsDto getSrsSettings(Long userId) {
         SrsSettings s = getSettings(userId);
-        return new SrsSettingsDto(s.getInitialEaseFactor(), s.getMinEaseFactor(), s.getFirstInterval(), s.getSecondInterval());
+        return new SrsSettingsDto(
+                s.getInitialEaseFactor(),
+                s.getMinEaseFactor(),
+                s.getFirstInterval(),
+                s.getSecondInterval(),
+                s.getDesiredRetention());
     }
 
     @Transactional
@@ -86,7 +103,15 @@ public class SpacedRepetitionService {
         s.setMinEaseFactor(dto.minEaseFactor());
         s.setFirstInterval(dto.firstInterval());
         s.setSecondInterval(dto.secondInterval());
+        s.setDesiredRetention(normalizedDesiredRetention(dto.desiredRetention()));
         settingsRepository.save(s);
-        return dto;
+        return getSrsSettings(userId);
+    }
+
+    private double normalizedDesiredRetention(double value) {
+        if (value <= 0.0) {
+            return FsrsEngine.DEFAULT_DESIRED_RETENTION;
+        }
+        return Math.max(0.7, Math.min(0.98, value));
     }
 }

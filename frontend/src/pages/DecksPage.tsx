@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { deckApi } from '@/lib/api'
+import { cardApi, deckApi } from '@/lib/api'
 import { PageSpinner } from '@/components/ui/Spinner'
 import Card, { CardBody } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -10,7 +10,7 @@ import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 import type { Deck } from '@/types'
-import { Plus, BookOpen, Trash2, Play, Layers, Copy } from 'lucide-react'
+import { Plus, BookOpen, Trash2, Play, Layers, Copy, Sparkles } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 
 interface DeckFormState { name: string; description: string; dailyNewCardLimit: string; dailyReviewLimit: string }
@@ -19,13 +19,15 @@ const emptyForm = (): DeckFormState => ({ name: '', description: '', dailyNewCar
 export default function DecksPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user } = useAppStore()
+  const { user, lang } = useAppStore()
   const qc = useQueryClient()
   const [tab, setTab] = useState<'mine' | 'pool'>('mine')
   const [showCreate, setShowCreate] = useState(false)
   const [editDeck, setEditDeck] = useState<Deck | null>(null)
   const [form, setForm] = useState<DeckFormState>(emptyForm())
   const [deleteTarget, setDeleteTarget] = useState<Deck | null>(null)
+  const [fromTextDeck, setFromTextDeck] = useState<Deck | null>(null)
+  const [fromTextForm, setFromTextForm] = useState({ text: '', count: '8' })
 
   const { data: decks = [], isLoading } = useQuery<Deck[]>({ queryKey: ['decks'], queryFn: deckApi.list })
   const { data: pool = [], isLoading: poolLoading } = useQuery<Deck[]>({
@@ -43,6 +45,18 @@ export default function DecksPage() {
   const copyMut = useMutation({
     mutationFn: (id: number) => deckApi.copyPool(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['decks'] }); setTab('mine') },
+  })
+  const fromTextMut = useMutation({
+    mutationFn: () => cardApi.fromText(fromTextDeck!.id, {
+      text: fromTextForm.text,
+      count: Number(fromTextForm.count),
+      language: lang,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['decks'] })
+      setFromTextDeck(null)
+      setFromTextForm({ text: '', count: '8' })
+    },
   })
 
   const openEdit = (d: Deck) => {
@@ -99,9 +113,12 @@ export default function DecksPage() {
                     <span className="flex items-center gap-1 text-orange-500"><BookOpen className="w-3.5 h-3.5" />{deck.dueCards} {t('deck.due')}</span>
                     {deck.newCards > 0 && <span className="text-primary-500">{deck.newCards} {t('deck.new')}</span>}
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button size="sm" onClick={() => navigate(`/review/${deck.id}`)} className="flex-1">
                       <Play className="w-3.5 h-3.5" />{t('deck.startReview')}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setFromTextDeck(deck)}>
+                      <Sparkles className="w-3.5 h-3.5" />成卡
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => openEdit(deck)}>{t('common.edit')}</Button>
                     {(user?.role === 'ADMIN' || deck.type === 'CUSTOM') && (
@@ -163,6 +180,41 @@ export default function DecksPage() {
           <Button variant="danger" loading={deleteMut.isPending} onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}>
             {t('common.delete')}
           </Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!fromTextDeck} onClose={() => setFromTextDeck(null)} title="面经 / 笔记一键成卡" size="xl">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            目标牌组：<span className="font-medium text-gray-800 dark:text-gray-100">{fromTextDeck?.name}</span>
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
+            <Input
+              label="生成数量"
+              type="number"
+              min="1"
+              max="30"
+              value={fromTextForm.count}
+              onChange={e => setFromTextForm(f => ({ ...f, count: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">面经 / 笔记原文</label>
+            <textarea
+              value={fromTextForm.text}
+              rows={12}
+              placeholder="粘贴面经、复盘笔记、项目材料或知识点摘要，AI 会抽取成原子化问答卡片。"
+              onChange={e => setFromTextForm(f => ({ ...f, text: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          {fromTextMut.isError && <p className="text-sm text-red-500">生成失败，请确认 AI Key 可用后重试。</p>}
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setFromTextDeck(null)}>取消</Button>
+            <Button onClick={() => fromTextMut.mutate()} loading={fromTextMut.isPending} disabled={!fromTextForm.text.trim()}>
+              <Sparkles className="w-4 h-4" />生成卡片
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

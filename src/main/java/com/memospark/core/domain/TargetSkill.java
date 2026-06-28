@@ -43,6 +43,19 @@ public class TargetSkill {
     @Column(nullable = false)
     private int selfLevel = 0;
 
+    /** Study deck generated for this skill (JD → skill → deck → cards loop). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deck_id")
+    private Deck deck;
+
+    /** AI-proposed sub-topics (one per line) used to generate cards on demand. */
+    @Column(length = 2000)
+    private String topics;
+
+    /** AI-suggested total card count for this skill's deck. */
+    @Column(name = "suggested_card_count", nullable = false)
+    private int suggestedCardCount = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

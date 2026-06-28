@@ -33,6 +33,8 @@ public class ReviewLog {
     // Snapshot of CardProgress BEFORE this review (for undo)
     private int prevRepetitions;
     private double prevEaseFactor;
+    private double prevStability;
+    private double prevDifficulty;
     private int prevInterval;
     private LocalDate prevNextReviewDate;
     private LocalDate prevLastReviewDate;

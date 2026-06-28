@@ -3,13 +3,8 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { targetApi } from '../../api'
 import type { TargetDetail } from '../../types'
+import { targetStatusLabel } from '../../utils/targetStatus'
 import './index.scss'
-
-function statusLabel(status: string) {
-  if (status === 'PREPARING') return '备战中'
-  if (status === 'INTERVIEWING') return '面试中'
-  return '已结束'
-}
 
 function LevelDots({ level }: { level: number }) {
   const MAX = 5
@@ -112,7 +107,7 @@ export default function TargetDetailPage() {
         <Text className='company-name'>{detail.company}</Text>
         <Text className='position-name'>{detail.title}</Text>
         <View className='header-meta'>
-          <Text className='status-tag'>{statusLabel(detail.status)}</Text>
+          <Text className='status-tag'>{targetStatusLabel(detail.status)}</Text>
           {detail.interviewDate ? (
             <Text className='date-tag'>📅 {detail.interviewDate.substring(0, 10)}</Text>
           ) : null}

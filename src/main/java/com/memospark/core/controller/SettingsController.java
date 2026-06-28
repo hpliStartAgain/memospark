@@ -1,6 +1,10 @@
 package com.memospark.core.controller;
 
+import com.memospark.core.dto.AiSettingsDto;
 import com.memospark.core.dto.SrsSettingsDto;
+import com.memospark.core.dto.UpdateAiSettingsRequest;
+import com.memospark.core.service.AiService;
+import com.memospark.core.service.AiSettingsService;
 import com.memospark.core.service.ApiKeyService;
 import com.memospark.core.service.SpacedRepetitionService;
 import com.memospark.core.service.UserService;
@@ -17,6 +21,8 @@ public class SettingsController {
     private final SpacedRepetitionService srsService;
     private final UserService userService;
     private final ApiKeyService apiKeyService;
+    private final AiSettingsService aiSettingsService;
+    private final AiService aiService;
 
     @GetMapping("/srs")
     public SrsSettingsDto getSrsSettings(@AuthenticationPrincipal UserDetails userDetails) {
@@ -29,6 +35,29 @@ public class SettingsController {
                                              @AuthenticationPrincipal UserDetails userDetails) {
         Long userId = userService.getUserId(userDetails.getUsername());
         return srsService.updateSrsSettings(userId, dto);
+    }
+
+    @GetMapping("/ai")
+    public AiSettingsDto getAiSettings(@AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = userService.getUserId(userDetails.getUsername());
+        return aiSettingsService.get(userId);
+    }
+
+    @PutMapping("/ai")
+    public AiSettingsDto updateAiSettings(@RequestBody UpdateAiSettingsRequest req,
+                                          @AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = userService.getUserId(userDetails.getUsername());
+        return aiSettingsService.update(userId, req);
+    }
+
+    @PostMapping("/ai/test")
+    public java.util.Map<String, Object> testAiSettings(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = userService.getUserId(userDetails.getUsername());
+        String response = aiService.testConnection(userId);
+        return java.util.Map.of(
+                "ok", true,
+                "response", response != null ? response.trim() : "");
     }
 
     @PostMapping("/api-key")

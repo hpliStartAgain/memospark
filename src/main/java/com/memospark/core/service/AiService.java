@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,6 +42,8 @@ public class AiService {
     private int maxRetries;
 
     private final ObjectMapper objectMapper;
+    private final AiSettingsService aiSettingsService;
+    private final ThreadLocal<Long> userContext = new ThreadLocal<>();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -232,6 +235,98 @@ public class AiService {
     }
 
     /**
+     * Generate mock interview questions from a target's JD and skill context.
+     * Returns JSON array entries with question, dimension, and rubric fields.
+     */
+    public List<Map<String, String>> generateInterviewQuestions(String targetContext, String type,
+                                                                 int count, String language) {
+        String lang = "zh".equals(language) ? "Chinese" : "English";
+        String interviewType = switch ((type == null ? "MIXED" : type).toUpperCase()) {
+            case "BEHAVIORAL" -> "behavioral STAR";
+            case "TECHNICAL" -> "technical deep-dive";
+            case "SYSTEM_DESIGN" -> "system design";
+            default -> "mixed behavioral, technical, and system design";
+        };
+
+        String prompt = """
+                You are a senior interview coach. Generate exactly %d mock interview questions for this target.
+
+                Interview type: %s
+
+                Candidate target context:
+                %s
+
+                Requirements:
+                - Questions must be realistic for the target JD and skills.
+                - Use dimensions from: STAR, TECHNICAL, SYSTEM_DESIGN.
+                - Each rubric should list 3-5 concrete scoring criteria.
+                - Do not help with real-time interview cheating; this is pre-interview practice only.
+
+                Reply in %s. Return ONLY JSON array, no markdown:
+                [{"dimension":"TECHNICAL","question":"...","rubric":"..."}]
+                """.formatted(count, interviewType, targetContext, lang);
+
+        String response = chat(prompt);
+        try {
+            return extractJsonArray(response, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse AI mock interview questions: {}", response, e);
+            throw new RuntimeException("AI returned invalid mock interview question format");
+        }
+    }
+
+    /**
+     * Evaluate one mock-interview answer.
+     * Returns JSON-like map: score 0-100, feedback, strengths, improvements.
+     */
+    public Map<String, Object> evaluateInterviewAnswer(String question, String userAnswer,
+                                                       String rubric, String dimension,
+                                                       String language) {
+        if (userAnswer == null || userAnswer.isBlank()) {
+            return Map.of("score", 0, "feedback", "No answer provided.");
+        }
+
+        String lang = "zh".equals(language) ? "Chinese" : "English";
+        String prompt = """
+                You are a strict but constructive mock-interview evaluator.
+
+                Dimension: %s
+                Question:
+                %s
+
+                Rubric:
+                %s
+
+                Candidate answer:
+                %s
+
+                Score the answer from 0 to 100.
+                For STAR answers, evaluate Situation/Task/Action/Result clarity.
+                For technical answers, evaluate correctness, depth, tradeoffs, and communication.
+                For system design answers, evaluate requirements, architecture, tradeoffs, bottlenecks, and reliability thinking.
+
+                Reply in %s. Return ONLY JSON, no markdown:
+                {"score":82,"feedback":"brief actionable feedback","strengths":["..."],"improvements":["..."]}
+                """.formatted(dimension, question, rubric, userAnswer, lang);
+
+        String response;
+        try {
+            response = chat(prompt);
+        } catch (RuntimeException e) {
+            log.warn("AI mock interview evaluation unavailable, returning fallback score", e);
+            return Map.of("score", 60,
+                    "feedback", "AI evaluation is temporarily unavailable. The answer was saved for later review.");
+        }
+
+        try {
+            return extractJsonObject(response, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse AI mock interview evaluation: {}", response, e);
+            return Map.of("score", 60, "feedback", response);
+        }
+    }
+
+    /**
      * Analyze user's weakness patterns based on wrong problem data.
      */
     public String analyzeWeakness(String summary) {
@@ -253,22 +348,68 @@ public class AiService {
         return chat(prompt);
     }
 
+    // ── User-scoped overloads ───────────────────────────────────────────
+
+    public Map<String, Object> gradeAnswer(String question, String referenceAnswer,
+                                            String userAnswer, Long userId) {
+        return withUser(userId, () -> gradeAnswer(question, referenceAnswer, userAnswer));
+    }
+
+    public String generateHint(String problemDescription, String userCode, int level, Long userId) {
+        return withUser(userId, () -> generateHint(problemDescription, userCode, level));
+    }
+
+    public String analyzeTLE(String problemDescription, String userCode, String language, Long userId) {
+        return withUser(userId, () -> analyzeTLE(problemDescription, userCode, language));
+    }
+
+    public List<Map<String, String>> generateCards(String topic, int count, String language, Long userId) {
+        return withUser(userId, () -> generateCards(topic, count, language));
+    }
+
+    public Map<String, Object> analyzeJds(List<String> jds, String language, Long userId) {
+        return withUser(userId, () -> analyzeJds(jds, language));
+    }
+
+    public List<Map<String, String>> generateCardsForTopic(String deckName, String topic, int count,
+                                                            String language, Long userId) {
+        return withUser(userId, () -> generateCardsForTopic(deckName, topic, count, language));
+    }
+
+    public List<Map<String, String>> generateInterviewQuestions(String targetContext, String type,
+                                                                 int count, String language, Long userId) {
+        return withUser(userId, () -> generateInterviewQuestions(targetContext, type, count, language));
+    }
+
+    public Map<String, Object> evaluateInterviewAnswer(String question, String userAnswer,
+                                                       String rubric, String dimension,
+                                                       String language, Long userId) {
+        return withUser(userId, () -> evaluateInterviewAnswer(
+                question, userAnswer, rubric, dimension, language));
+    }
+
+    public String analyzeWeakness(String summary, Long userId) {
+        return withUser(userId, () -> analyzeWeakness(summary));
+    }
+
     /**
      * Streaming chat: calls AI API with stream=true and invokes onChunk for each content delta.
      * Returns the full accumulated text.
      */
     public String chatStream(String userMessage, Consumer<String> onChunk) {
         try {
+            AiSettingsService.AiRuntimeSettings settings = runtimeSettings();
+            requireApiKey(settings.apiKey());
             String body = objectMapper.writeValueAsString(Map.of(
-                    "model", model,
+                    "model", settings.model(),
                     "messages", List.of(Map.of("role", "user", "content", userMessage)),
                     "stream", true
             ));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
+                    .uri(chatCompletionsUri(settings.baseUrl()))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + settings.apiKey())
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .build();
@@ -333,6 +474,15 @@ public class AiService {
         return chatStream(prompt, onChunk);
     }
 
+    public String generateHintStream(String problemDescription, String userCode, int level,
+                                     Long userId, Consumer<String> onChunk) {
+        return withUser(userId, () -> generateHintStream(problemDescription, userCode, level, onChunk));
+    }
+
+    public String testConnection(Long userId) {
+        return withUser(userId, () -> chat("Reply with exactly: OK"));
+    }
+
     private String chat(String userMessage) {
         RuntimeException last = null;
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
@@ -353,15 +503,17 @@ public class AiService {
 
     private String chatOnce(String userMessage) {
         try {
+            AiSettingsService.AiRuntimeSettings settings = runtimeSettings();
+            requireApiKey(settings.apiKey());
             String body = objectMapper.writeValueAsString(Map.of(
-                    "model", model,
+                    "model", settings.model(),
                     "messages", List.of(Map.of("role", "user", "content", userMessage))
             ));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl))
+                    .uri(chatCompletionsUri(settings.baseUrl()))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + settings.apiKey())
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .build();
@@ -385,6 +537,44 @@ public class AiService {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             log.error("AI API call failed (transient)", e);
             throw new RetryableAiException("AI service unavailable: " + e.getMessage());
+        }
+    }
+
+    private AiSettingsService.AiRuntimeSettings runtimeSettings() {
+        Long userId = userContext.get();
+        if (userId != null) {
+            return aiSettingsService.resolve(userId);
+        }
+        return new AiSettingsService.AiRuntimeSettings("Environment", apiUrl, model, apiKey);
+    }
+
+    private URI chatCompletionsUri(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalStateException("AI base URL is not configured");
+        }
+        String normalized = baseUrl.trim();
+        while (normalized.endsWith("/")) normalized = normalized.substring(0, normalized.length() - 1);
+        if (!normalized.endsWith("/chat/completions")) {
+            normalized += "/chat/completions";
+        }
+        return URI.create(normalized);
+    }
+
+    private void requireApiKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new IllegalStateException("AI API key is not configured");
+        }
+    }
+
+    private <T> T withUser(Long userId, Supplier<T> action) {
+        if (userId == null) return action.get();
+        Long previous = userContext.get();
+        userContext.set(userId);
+        try {
+            return action.get();
+        } finally {
+            if (previous == null) userContext.remove();
+            else userContext.set(previous);
         }
     }
 

@@ -11,8 +11,10 @@ export default function Card({ className, children, onClick, hoverable }: CardPr
   return (
     <div
       className={cn(
-        'bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm',
-        hoverable && 'transition-shadow hover:shadow-md cursor-pointer',
+        'bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-200/70 dark:border-gray-800/70 shadow-sm',
+        'transition-all duration-300',
+        hoverable && 'hover:-translate-y-0.5 hover:shadow-lg hover:border-primary-300/60 dark:hover:border-primary-700/50 cursor-pointer',
+        onClick && !hoverable && 'cursor-pointer',
         className,
       )}
       onClick={onClick}

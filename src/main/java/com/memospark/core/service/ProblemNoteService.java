@@ -23,6 +23,7 @@ public class ProblemNoteService {
     private final UserRepository userRepository;
     private final SrsEngine srsEngine;
     private final SrsSettingsRepository srsSettingsRepository;
+    private final CardService cardService;
 
     @Transactional(readOnly = true)
     public List<ProblemNoteDto> getAllNotes(Long userId) {
@@ -147,6 +148,35 @@ public class ProblemNoteService {
         return toDto(noteRepository.save(note));
     }
 
+    @Transactional
+    public ReviewCardDto convertToCard(Long userId, Long problemId, Long deckId) {
+        ProblemNote note = noteRepository.findByUserIdAndProblemId(userId, problemId)
+                .orElseThrow(() -> new NoSuchElementException("Note not found"));
+        CodeProblem problem = note.getProblem();
+
+        String front = "《" + problem.getTitle() + "》：请说明正确解题思路，并解释你曾经的错误原因。";
+        List<String> sections = new ArrayList<>();
+        if (note.getErrorReason() != null) {
+            sections.add("错误原因：" + note.getErrorReason().name());
+        }
+        if (note.getNote() != null && !note.getNote().isBlank()) {
+            sections.add("复盘笔记：" + note.getNote().trim());
+        }
+        if (problem.getHint() != null && !problem.getHint().isBlank()) {
+            sections.add("关键提示：" + problem.getHint().trim());
+        }
+        if (sections.isEmpty()) {
+            sections.add("题目要点：" + truncate(problem.getDescription(), 1200));
+        }
+
+        String tags = "wrong-note" + (problem.getCategory() != null ? "," + problem.getCategory() : "");
+        return cardService.createCard(
+                deckId,
+                new CreateCardRequest(front, String.join("\n\n", sections), tags),
+                userId,
+                false);
+    }
+
     @Transactional(readOnly = true)
     public WeaknessAnalysisDto getWeaknessData(Long userId) {
         Map<String, Integer> errorCounts = new LinkedHashMap<>();
@@ -190,5 +220,10 @@ public class ProblemNoteService {
                 n.getErrorReason() != null ? n.getErrorReason().name() : null,
                 n.getRetryCount(), n.getNextRetryDate(), isDue, n.getUpdatedAt()
         );
+    }
+
+    private String truncate(String value, int max) {
+        if (value == null || value.length() <= max) return value;
+        return value.substring(0, max) + "...";
     }
 }

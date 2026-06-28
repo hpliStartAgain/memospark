@@ -122,6 +122,8 @@ public class ReviewService {
         ReviewLog log = new ReviewLog(card, req.quality(), req.timeSpentMs());
         log.setPrevRepetitions(progress.getRepetitions());
         log.setPrevEaseFactor(progress.getEaseFactor());
+        log.setPrevStability(progress.getStability());
+        log.setPrevDifficulty(progress.getDifficulty());
         log.setPrevInterval(progress.getInterval());
         log.setPrevNextReviewDate(progress.getNextReviewDate());
         log.setPrevLastReviewDate(progress.getLastReviewDate());
@@ -147,6 +149,8 @@ public class ReviewService {
         // Restore previous state
         progress.setRepetitions(lastLog.getPrevRepetitions());
         progress.setEaseFactor(lastLog.getPrevEaseFactor());
+        progress.setStability(lastLog.getPrevStability());
+        progress.setDifficulty(lastLog.getPrevDifficulty());
         progress.setInterval(lastLog.getPrevInterval());
         progress.setNextReviewDate(lastLog.getPrevNextReviewDate());
         progress.setLastReviewDate(lastLog.getPrevLastReviewDate());

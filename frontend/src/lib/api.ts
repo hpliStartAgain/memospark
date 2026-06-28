@@ -69,6 +69,8 @@ export const cardApi = {
     api.post(`/decks/${deckId}/cards/batch-delete`, { cardIds }),
   batchMove:   (fromDeckId: number, toDeckId: number, cardIds: number[]) =>
     api.post(`/decks/${fromDeckId}/cards/batch-move`, { targetDeckId: toDeckId, cardIds }),
+  fromText:    (deckId: number, body: object) =>
+    api.post(`/decks/${deckId}/cards/from-text`, body).then(r => r.data),
 }
 
 // ── Review ────────────────────────────────────────────────────────────────
@@ -102,6 +104,8 @@ export const practiceApi = {
   removeWrong: (problemId: number) => api.delete(`/practice/notebook/${problemId}/wrong`),
   retry:       (problemId: number, quality: number) =>
     api.post(`/practice/notebook/${problemId}/retry`, { quality }).then(r => r.data),
+  toCard:      (problemId: number, deckId: number) =>
+    api.post(`/practice/notebook/${problemId}/to-card`, { deckId }).then(r => r.data),
   aiAnalysis:  () => api.post('/practice/notebook/ai-analysis').then(r => r.data),
 }
 
@@ -133,6 +137,7 @@ export const targetApi = {
   get:         (id: number) => api.get(`/targets/${id}`).then(r => r.data),
   create:      (body: object) => api.post('/targets', body).then(r => r.data),
   update:      (id: number, body: object) => api.put(`/targets/${id}`, body).then(r => r.data),
+  updateStatus:(id: number, status: string) => api.patch(`/targets/${id}/status`, { status }).then(r => r.data),
   remove:      (id: number) => api.delete(`/targets/${id}`),
   addJd:       (id: number, body: object) => api.post(`/targets/${id}/jds`, body).then(r => r.data),
   removeJd:    (id: number, jdId: number) => api.delete(`/targets/${id}/jds/${jdId}`),
@@ -142,13 +147,31 @@ export const targetApi = {
   updateSkill: (id: number, skillId: number, body: object) =>
     api.put(`/targets/${id}/skills/${skillId}`, body).then(r => r.data),
   removeSkill: (id: number, skillId: number) => api.delete(`/targets/${id}/skills/${skillId}`),
+  generateSkillCards: (id: number, skillId: number, lang: string) =>
+    api.post(`/targets/${id}/skills/${skillId}/generate-cards`, null, { params: { lang } }).then(r => r.data),
   readiness:   (id: number) => api.get(`/targets/${id}/readiness`).then(r => r.data),
+}
+
+// ── Mock Interviews ───────────────────────────────────────────────────────
+export const mockInterviewApi = {
+  list:   (targetId: number) => api.get(`/targets/${targetId}/mock-interviews`).then(r => r.data),
+  get:    (targetId: number, interviewId: number) =>
+    api.get(`/targets/${targetId}/mock-interviews/${interviewId}`).then(r => r.data),
+  start:  (targetId: number, body: object) =>
+    api.post(`/targets/${targetId}/mock-interviews`, body).then(r => r.data),
+  answer: (targetId: number, interviewId: number, questionId: number, answer: string) =>
+    api.post(`/targets/${targetId}/mock-interviews/${interviewId}/questions/${questionId}/answer`, { answer }).then(r => r.data),
+  finish: (targetId: number, interviewId: number) =>
+    api.post(`/targets/${targetId}/mock-interviews/${interviewId}/finish`).then(r => r.data),
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
 export const settingsApi = {
   getSrs:    () => api.get('/settings/srs').then(r => r.data),
   updateSrs: (body: object) => api.put('/settings/srs', body).then(r => r.data),
+  getAi:     () => api.get('/settings/ai').then(r => r.data),
+  updateAi:  (body: object) => api.put('/settings/ai', body).then(r => r.data),
+  testAi:    () => api.post('/settings/ai/test').then(r => r.data),
   export:    (deckId: number) => api.get(`/export/csv/${deckId}`, { responseType: 'blob' }),
   importCsv: (deckId: number, file: File) => {
     const fd = new FormData(); fd.append('file', file)

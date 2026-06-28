@@ -40,6 +40,13 @@ public class TargetController {
         return targetService.update(id, principal.id(), principal.admin(), req);
     }
 
+    @PatchMapping("/{id}/status")
+    public TargetDetailDto updateStatus(@PathVariable Long id,
+                                        @RequestBody UpdateTargetStatusRequest req,
+                                        @CurrentUser UserPrincipal principal) {
+        return targetService.updateStatus(id, principal.id(), principal.admin(), req);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id, @CurrentUser UserPrincipal principal) {
@@ -89,6 +96,13 @@ public class TargetController {
     public void deleteSkill(@PathVariable Long id, @PathVariable Long skillId,
                             @CurrentUser UserPrincipal principal) {
         targetService.deleteSkill(id, skillId, principal.id(), principal.admin());
+    }
+
+    @PostMapping("/{id}/skills/{skillId}/generate-cards")
+    public TargetSkillDto generateSkillCards(@PathVariable Long id, @PathVariable Long skillId,
+                                             @RequestParam(defaultValue = "zh") String lang,
+                                             @CurrentUser UserPrincipal principal) {
+        return targetService.generateSkillCards(id, skillId, principal.id(), principal.admin(), lang);
     }
 
     @GetMapping("/{id}/readiness")

@@ -47,6 +47,8 @@ class ReviewServiceTest {
         progress = new CardProgress(card);
         progress.setRepetitions(2);
         progress.setEaseFactor(2.5);
+        progress.setStability(4.0);
+        progress.setDifficulty(5.0);
         progress.setInterval(6);
         progress.setNextReviewDate(LocalDate.now().plusDays(6));
         progress.setLastReviewDate(LocalDate.now().minusDays(6));
@@ -87,6 +89,8 @@ class ReviewServiceTest {
         ReviewLog log = new ReviewLog(card, 5, 3000L);
         log.setPrevRepetitions(1);
         log.setPrevEaseFactor(2.3);
+        log.setPrevStability(3.5);
+        log.setPrevDifficulty(6.2);
         log.setPrevInterval(3);
         log.setPrevNextReviewDate(LocalDate.now().plusDays(3));
         log.setPrevLastReviewDate(LocalDate.now().minusDays(3));
@@ -101,6 +105,8 @@ class ReviewServiceTest {
         assertNotNull(result);
         assertEquals(1, progress.getRepetitions());
         assertEquals(2.3, progress.getEaseFactor(), 1e-9);
+        assertEquals(3.5, progress.getStability(), 1e-9);
+        assertEquals(6.2, progress.getDifficulty(), 1e-9);
         assertEquals(3, progress.getInterval());
         verify(cardProgressRepository).save(progress);
         verify(reviewLogRepository).delete(log);

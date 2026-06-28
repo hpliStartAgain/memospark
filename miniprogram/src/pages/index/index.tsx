@@ -4,6 +4,7 @@ import { View, Text, Button } from '@tarojs/components'
 import { statsApi, targetApi, reviewApi } from '../../api'
 import { store } from '../../store'
 import type { StatsSummary, TargetSummary } from '../../types'
+import { isActiveTargetStatus, targetStatusLabel } from '../../utils/targetStatus'
 import './index.scss'
 
 export default function DashboardPage() {
@@ -35,9 +36,7 @@ export default function DashboardPage() {
       ])
       setStats(statsData)
       setDueCount(todayCards.length)
-      const active = targetsData.find(
-        (t) => t.status === 'PREPARING' || t.status === 'INTERVIEWING'
-      )
+      const active = targetsData.find((t) => isActiveTargetStatus(t.status))
       setPrimaryTarget(active || targetsData[0] || null)
     } catch {
       // ignore — show empty state
@@ -145,7 +144,7 @@ export default function DashboardPage() {
               <Text className='company'>{primaryTarget.company}</Text>
               <Text className='position'>{primaryTarget.title}</Text>
               <Text className='readiness-label'>
-                {primaryTarget.status === 'INTERVIEWING' ? '⚡ 面试中' : '📖 备战中'}
+                {targetStatusLabel(primaryTarget.status)}
               </Text>
             </View>
             <View className='readiness-ring'>

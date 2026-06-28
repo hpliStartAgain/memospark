@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -7,7 +7,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import Button from '@/components/ui/Button'
 import Card, { CardBody } from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
-import type { Card as ReviewCard } from '@/types'
+import type { ReviewCard } from '@/types'
 import { RotateCcw, ChevronLeft, Brain, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +29,8 @@ export default function ReviewPage() {
   const [flipped, setFlipped] = useState(false)
   const [done, setDone] = useState(false)
   const [startTime] = useState(() => Date.now())
+  const [cardStartedAt, setCardStartedAt] = useState(() => Date.now())
+  const [streak, setStreak] = useState(0)
   const [aiGradeOpen, setAiGradeOpen] = useState(false)
   const [userAnswer, setUserAnswer] = useState('')
   const [gradeResult, setGradeResult] = useState<string>('')
@@ -41,21 +43,53 @@ export default function ReviewPage() {
 
   const reviewMut = useMutation({
     mutationFn: ({ cardId, quality }: { cardId: number; quality: number }) =>
-      reviewApi.submit(cardId, quality, Date.now() - startTime),
-    onSuccess: () => {
+      reviewApi.submit(cardId, quality, Date.now() - cardStartedAt),
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['decks'] })
+      setStreak(current => variables.quality >= 4 ? current + 1 : 0)
       const next = idx + 1
       if (next >= cards.length) { setDone(true) }
-      else { setIdx(next); setFlipped(false) }
+      else {
+        setIdx(next)
+        setFlipped(false)
+        setCardStartedAt(Date.now())
+      }
     },
   })
 
   const undoMut = useMutation({
     mutationFn: (cardId: number) => reviewApi.undo(cardId),
     onSuccess: () => {
-      if (idx > 0) { setIdx(i => i - 1); setFlipped(false); setDone(false) }
+      if (idx > 0) {
+        setIdx(i => i - 1)
+        setFlipped(false)
+        setDone(false)
+        setStreak(0)
+        setCardStartedAt(Date.now())
+      }
     },
   })
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement | null)?.tagName
+      if (aiGradeOpen || ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag || '')) return
+      if (event.code === 'Space' && !flipped) {
+        event.preventDefault()
+        setFlipped(true)
+        return
+      }
+      const qualityKey = /^[1-5]$/.test(event.key)
+        ? Number(event.key)
+        : (/^(Digit|Numpad)[1-5]$/.test(event.code) ? Number(event.code.slice(-1)) : null)
+      if (flipped && qualityKey && !reviewMut.isPending && cards[idx]) {
+        event.preventDefault()
+        reviewMut.mutate({ cardId: cards[idx].cardId, quality: qualityKey })
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [aiGradeOpen, cards, flipped, idx, reviewMut.isPending])
 
   const handleGrade = useCallback(async (card: ReviewCard) => {
     setGrading(true)
@@ -87,6 +121,9 @@ export default function ReviewPage() {
 
   const card = cards[idx]
   const progress = `${idx + 1} / ${cards.length}`
+  const elapsedMs = Math.max(1, Date.now() - startTime)
+  const averageMs = idx > 0 ? elapsedMs / idx : 30_000
+  const remainingMinutes = Math.max(1, Math.ceil((cards.length - idx) * averageMs / 60_000))
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -95,20 +132,23 @@ export default function ReviewPage() {
         <Button variant="ghost" size="sm" onClick={() => navigate('/decks')}>
           <ChevronLeft className="w-4 h-4" />{t('common.back')}
         </Button>
-        <span className="text-sm text-gray-500">{progress}</span>
-        <Button variant="ghost" size="sm" onClick={() => undoMut.mutate(card.id)} disabled={idx === 0}>
+        <div className="text-center">
+          <span className="text-sm text-gray-500">{progress}</span>
+          <p className="text-xs text-gray-400">约 {remainingMinutes} 分钟 · 连击 {streak}</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => undoMut.mutate(card.cardId)} disabled={idx === 0}>
           <RotateCcw className="w-4 h-4" />{t('review.undo')}
         </Button>
       </div>
 
       {/* Progress bar */}
       <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full">
-        <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${(idx / cards.length) * 100}%` }} />
+        <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${((idx + 1) / cards.length) * 100}%` }} />
       </div>
 
       {/* Flashcard */}
       <div className="card-flip" onClick={() => !flipped && setFlipped(true)}>
-        <div className={cn('card-flip-inner', flipped && 'flipped')}>
+        <div className={cn('card-flip-inner relative min-h-[260px]', flipped && 'flipped')}>
           {/* Front */}
           <Card className="card-face min-h-[260px] cursor-pointer select-none">
             <CardBody className="flex flex-col items-center justify-center min-h-[260px] text-center">
@@ -134,7 +174,7 @@ export default function ReviewPage() {
             {QUALITY_BTNS.map(({ q, label, color }) => (
               <button
                 key={q}
-                onClick={() => reviewMut.mutate({ cardId: card.id, quality: q })}
+                onClick={() => reviewMut.mutate({ cardId: card.cardId, quality: q })}
                 disabled={reviewMut.isPending}
                 className={cn('py-3 rounded-xl text-sm font-medium transition-transform active:scale-95', color)}
               >

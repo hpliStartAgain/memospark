@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "task_id": "memospark-maturation",
+  "updated_at": "2026-06-28T18:27:20+08:00",
+  "source_agent": "codex",
+  "repo": "memospark",
+  "cwd": "C:/Users/19682/Documents/memospark",
+  "branch": "main",
+  "git_state": "dirty-uncommitted",
+  "status": "delivery_candidate_verified",
+  "current_phase": "P0-P4 key delivery complete; mini-program build/deploy gate ready; hpli interview deck bootstrap complete; final verification green except external WeChat upload credentials",
+  "completed_steps": [
+    "P0: JD -> skill -> deck -> cards -> review loop",
+    "P1: FSRS/DSR scheduler and evidence-aware readiness",
+    "P2: AI mock interview MVP with scoring feedback into readiness",
+    "AI settings: user-configurable OpenAI-compatible provider/base URL/model/API key with encrypted key storage",
+    "Live AI E2E: connection, JD analysis, card generation, mock interview questions, answer evaluation",
+    "P3: notes/interview-experience -> cards, wrong-note -> cards, job funnel kanban, stats readiness/trend upgrade",
+    "P4 key polish: lazy route loading, manual chunks, review progress/streak/ETA/keyboard controls",
+    "Runtime fixes: CSRF cookie materialization for SPA POSTs, review cardId contract alignment, Maven static resource copy",
+    "Mini-program: production build/upload gate scripts, target funnel status alignment, deploy docs",
+    "hpli decks: production SQL seeded technical interview decks for K8s, big data, network, Linux, JVM, Go, observability/alerting, distributed HA; removed unrelated English deck"
+  ],
+  "verification": {
+    "backend_test": "PASS: .\\mvnw.cmd test -> Tests run: 49, Failures: 0, Errors: 0, Skipped: 1 (AiLiveE2ETest gated by env)",
+    "frontend_build": "PASS: frontend/ npm run build -> tsc && vite build; no >500kB chunk warning",
+    "process_classes": "PASS: .\\mvnw.cmd -DskipTests process-classes -> target/classes/static/index.html present",
+    "live_ai_e2e": "PASS: AiLiveE2ETest with runtime LIVE_AI_E2E=true and env key",
+    "local_browser_e2e": "PASS: AI settings test connection; target funnel Offer stage; stats readiness; review click scoring and Space+4 keyboard scoring",
+    "hpli_db_seed": "PASS: production SQL executed via SSH/MySQL; hpli now has 8 new CUSTOM technical decks with 48 cards; English Vocabulary removed; Java/Algorithms/LeetCode preserved",
+    "miniprogram_build": "PASS: npm run build:weapp and TARO_APP_API_URL=https://memospark.example.com npm run build:weapp:prod",
+    "miniprogram_upload_gate": "EXPECTED BLOCK: validate:weapp passes API URL and built output checks; fails only for missing real AppID and WeChat DevTools CLI",
+    "diff_check": "PASS: git diff --check has no whitespace errors; CRLF warnings only",
+    "secret_scan": "PASS: no provided API key or plaintext AI_API_KEY found in repo scan"
+  },
+  "blockers": [
+    "commit / push / deploy still require explicit owner approval",
+    "WeChat mini-program upload requires real AppID, installed/logged-in WeChat DevTools CLI or CI credential, and HTTPS backend domain allowlist",
+    "optional P4 remains: full onboarding, full i18n, a11y audit, visual brand polish"
+  ],
+  "artifact_paths": [
+    "docs/PRODUCT_STRATEGY.md",
+    "TODO.md#成熟化-Roadmap交接-Codex",
+    "CHANGELOG.md",
+    ".agent/handoff/20260628-1425-memospark-maturation/",
+    ".agent/handoff/20260628-1425-memospark-maturation/hpli_interview_decks_seed.sql",
+    ".agent/handoff/20260628-1425-memospark-maturation/verify-final-mvn-test-after-db-seed.log",
+    ".agent/handoff/20260628-1425-memospark-maturation/verify-delivery-frontend-build-final-2.log",
+    ".agent/handoff/20260628-1425-memospark-maturation/verify-live-ai-e2e.log"
+  ],
+  "next_steps": [
+    "Owner decision: commit/push/deploy or keep local",
+    "Optional P4 polish: onboarding empty states, complete i18n, a11y/focus audit, brand/PWA icon pass",
+    "Production smoke after deploy: login, AI settings test, JD analyze, generate cards, review one card, mock interview answer"
+  ]
+}

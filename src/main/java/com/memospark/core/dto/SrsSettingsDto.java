@@ -4,5 +4,6 @@ public record SrsSettingsDto(
         double initialEaseFactor,
         double minEaseFactor,
         int firstInterval,
-        int secondInterval
+        int secondInterval,
+        double desiredRetention
 ) {}

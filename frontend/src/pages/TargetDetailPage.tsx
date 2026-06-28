@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import type { TargetDetail, TargetSkill, JobJd } from '@/types'
 import {
   ArrowLeft, Plus, Trash2, Sparkles, Building2, CalendarClock,
-  FileText, Lightbulb, ChevronDown, ChevronUp,
+  FileText, Lightbulb, BookOpen, ChevronDown, ChevronUp,
 } from 'lucide-react'
 
 function countdownText(days?: number) {
@@ -40,6 +40,12 @@ function MetricBar({ label, value }: { label: string; value: number }) {
 
 function SkillRow({ skill, targetId }: { skill: TargetSkill; targetId: number }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { lang } = useAppStore()
+  const genMut = useMutation({
+    mutationFn: () => targetApi.generateSkillCards(targetId, skill.id, lang),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['target', String(targetId)] }),
+  })
   const updateMut = useMutation({
     mutationFn: (body: object) => targetApi.updateSkill(targetId, skill.id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['target', String(targetId)] }),
@@ -86,6 +92,23 @@ function SkillRow({ skill, targetId }: { skill: TargetSkill; targetId: number })
           ))}
         </div>
       </div>
+
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/60">
+        {skill.cardCount > 0 ? (
+          <button onClick={() => skill.deckId && navigate(`/review/${skill.deckId}`)}
+            className="text-xs text-primary-600 hover:underline inline-flex items-center gap-1">
+            <BookOpen className="w-3.5 h-3.5" />复习此技能（{skill.cardCount} 张）
+          </button>
+        ) : (
+          <span className="text-xs text-gray-400">还没有卡片，AI 可按 JD 生成</span>
+        )}
+        {skill.cardCount === 0 && (
+          <Button size="sm" variant="secondary" onClick={() => genMut.mutate()} loading={genMut.isPending}>
+            <Sparkles className="w-3.5 h-3.5" />生成卡片
+          </Button>
+        )}
+      </div>
+      {genMut.isError && <p className="text-xs text-red-500">生成失败，请确认已配置 AI Key 后重试。</p>}
     </div>
   )
 }
@@ -132,6 +155,7 @@ export default function TargetDetailPage() {
   const [skillOpen, setSkillOpen] = useState(false)
   const [skillForm, setSkillForm] = useState({ name: '', description: '', weight: '3' })
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [genAllRunning, setGenAllRunning] = useState(false)
 
   const { data: target, isLoading } = useQuery<TargetDetail>({
     queryKey: ['target', String(targetId)],
@@ -167,6 +191,18 @@ export default function TargetDetailPage() {
 
   const r = target.readiness
 
+  const genAll = async () => {
+    setGenAllRunning(true)
+    try {
+      for (const s of target.skills.filter(sk => sk.cardCount === 0)) {
+        try { await targetApi.generateSkillCards(targetId, s.id, lang) } catch { /* skip failures, keep going */ }
+      }
+      await qc.invalidateQueries({ queryKey: ['target', String(targetId)] })
+    } finally {
+      setGenAllRunning(false)
+    }
+  }
+
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       {/* Header */}
@@ -183,19 +219,25 @@ export default function TargetDetailPage() {
             </div>
           </div>
         </div>
-        <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
-          <Trash2 className="w-4 h-4" />删除
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/targets/${targetId}/mock`)}>
+            <Sparkles className="w-4 h-4" />模拟面试
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+            <Trash2 className="w-4 h-4" />删除
+          </Button>
+        </div>
       </div>
 
       {/* Readiness */}
       <Card>
         <CardBody className="flex flex-col md:flex-row items-center gap-6">
           <ReadinessRing value={r.overall} size={120} stroke={10} label="面试就绪度" />
-          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <MetricBar label="技能覆盖" value={r.skillCoverage} />
             <MetricBar label="卡片健康" value={r.cardHealth} />
             <MetricBar label="错题清空" value={r.wrongClear} />
+            <MetricBar label="模拟面试" value={r.mockPerformance} />
           </div>
           <div className="flex md:flex-col gap-4 md:gap-2 text-center md:text-right">
             <div><span className="text-lg font-bold text-orange-500">{r.dueCards}</span><p className="text-xs text-gray-400">待复习卡</p></div>
@@ -237,9 +279,16 @@ export default function TargetDetailPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Lightbulb className="w-4 h-4" />技能需求与掌握度（{target.skills.length}）
           </h2>
-          <Button size="sm" variant="secondary" onClick={() => setSkillOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />手动添加
-          </Button>
+          <div className="flex gap-2">
+            {target.skills.some(s => s.cardCount === 0) && (
+              <Button size="sm" onClick={genAll} loading={genAllRunning}>
+                <Sparkles className="w-3.5 h-3.5" />一键生成全部
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => setSkillOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />手动添加
+            </Button>
+          </div>
         </CardHeader>
         <CardBody className="space-y-2">
           {target.skills.length === 0 ? (

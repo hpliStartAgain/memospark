@@ -24,5 +24,18 @@ export default defineConfig({
   build: {
     outDir: '../src/main/resources/static',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('monaco-editor')) return 'editor'
+          if (id.includes('recharts') || id.includes('/d3-')) return 'charts'
+          if (id.includes('@tanstack') || id.includes('axios')) return 'data'
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('i18next')) return 'i18n'
+          return 'vendor'
+        },
+      },
+    },
   },
 })

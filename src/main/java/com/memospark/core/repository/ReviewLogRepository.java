@@ -56,5 +56,12 @@ public interface ReviewLogRepository extends JpaRepository<ReviewLog, Long> {
     @Query("SELECT COUNT(rl) FROM ReviewLog rl JOIN rl.card c WHERE c.deck.user.id = :userId")
     long countByUserId(@Param("userId") Long userId);
 
+    @Query("SELECT COUNT(rl) FROM ReviewLog rl JOIN rl.card c WHERE c.deck.id = :deckId AND rl.reviewDate >= :since")
+    long countByDeckIdSince(@Param("deckId") Long deckId, @Param("since") LocalDate since);
+
+    @Query("SELECT COALESCE(AVG(CASE WHEN rl.quality >= 3 THEN 1.0 ELSE 0.0 END), 0) " +
+           "FROM ReviewLog rl JOIN rl.card c WHERE c.deck.id = :deckId AND rl.reviewDate >= :since")
+    double calculateRetentionRateByDeckIdSince(@Param("deckId") Long deckId, @Param("since") LocalDate since);
+
     void deleteByCardId(Long cardId);
 }

@@ -17,8 +17,10 @@ import type {
 
 declare const process: { env: { TARO_APP_API_URL?: string } }
 
-const BASE_URL: string =
-  (process.env.TARO_APP_API_URL as string) || 'http://localhost:8080'
+const BASE_URL: string = ((process.env.TARO_APP_API_URL as string) || '').replace(
+  /\/$/,
+  ''
+)
 
 function request<T = any>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -27,6 +29,11 @@ function request<T = any>(
 ): Promise<T> {
   const token = store.getToken()
   return new Promise<T>((resolve, reject) => {
+    if (!BASE_URL) {
+      reject(new Error('Missing TARO_APP_API_URL'))
+      return
+    }
+
     Taro.request({
       url: BASE_URL + '/api' + path,
       method,

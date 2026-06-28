@@ -1,13 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { statsApi } from '@/lib/api'
+import { statsApi, targetApi } from '@/lib/api'
 import { PageSpinner } from '@/components/ui/Spinner'
 import Card, { CardBody, CardHeader } from '@/components/ui/Card'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { BookOpen, Layers, Calendar, Flame, TrendingUp, CheckCircle } from 'lucide-react'
-import type { DailyStats, Stats } from '@/types'
+import type { DailyStats, Stats, TargetSummary } from '@/types'
 
 function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string | number; color: string }) {
   return (
@@ -29,14 +29,15 @@ export default function StatsPage() {
   const { t } = useTranslation()
   const { data: stats, isLoading: sl } = useQuery<Stats>({ queryKey: ['stats'], queryFn: statsApi.summary })
   const { data: daily, isLoading: dl } = useQuery<DailyStats[]>({ queryKey: ['stats', 'daily'], queryFn: () => statsApi.daily(30) })
+  const { data: targets = [], isLoading: tl } = useQuery<TargetSummary[]>({ queryKey: ['targets'], queryFn: targetApi.list })
 
-  if (sl || dl) return <PageSpinner />
+  if (sl || dl || tl) return <PageSpinner />
 
   const chartData = (daily ?? []).map(d => ({
-    date: d.date.slice(5),
-    count: d.count,
-    rate: Math.round(d.retentionRate * 100),
-  }))
+  date: d.date.slice(5),
+  count: d.count,
+  rate: d.retentionRate,
+}))
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -68,11 +69,37 @@ export default function StatsPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="reviews" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="retention" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Area type="monotone" dataKey="count" stroke="#0ea5e9" fill="url(#grad)" name={t('stats.count')} />
+              <Area yAxisId="reviews" type="monotone" dataKey="count" stroke="#0ea5e9" fill="url(#grad)" name={t('stats.count')} />
+              <Line yAxisId="retention" type="monotone" dataKey="rate" stroke="#16a34a" strokeWidth={2} dot={false} name={t('stats.rate')} />
             </AreaChart>
           </ResponsiveContainer>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">目标岗位就绪度</h2>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          {targets.length === 0 ? (
+            <p className="text-sm text-gray-400">还没有目标岗位。</p>
+          ) : targets.map(target => (
+            <div key={target.id} className="space-y-1">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-200 truncate">{target.title}</span>
+                <span className="font-bold text-primary-600">{target.readiness}</span>
+              </div>
+              <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary-600 transition-all"
+                  style={{ width: `${Math.max(0, Math.min(100, target.readiness))}%` }}
+                />
+              </div>
+            </div>
+          ))}
         </CardBody>
       </Card>
     </div>

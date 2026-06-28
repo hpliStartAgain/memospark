@@ -38,4 +38,29 @@
   .card-back {
     transform: rotateY(180deg);
   }
+  /* 视差滚动：固定背景层（移动端降级为 local，避免 iOS Safari 不支持 fixed） */
+  .parallax-bg {
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+  }
+  @media (max-width: 768px) {
+    .parallax-bg {
+      background-attachment: local;
+    }
+  }
+  /* 入场淡入（用于视差区块内容） */
+  .fade-in-up {
+    animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parallax-bg { background-attachment: local; }
+  .fade-in-up { animation: none; }
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { practiceApi } from '@/lib/api'
+import { deckApi, practiceApi } from '@/lib/api'
 import { PageSpinner } from '@/components/ui/Spinner'
 import Card, { CardBody } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import type { ProblemNote } from '@/types'
+import type { Deck, ProblemNote } from '@/types'
 import { difficultyBg, formatDate } from '@/lib/utils'
-import { Star, Brain, BookOpen, AlertTriangle } from 'lucide-react'
+import { Star, Brain, BookOpen, AlertTriangle, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FilterType = '' | 'WRONG' | 'TODO' | 'STAR'
@@ -30,10 +30,16 @@ export default function NotebookPage() {
   const [aiText, setAiText] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [retryNote, setRetryNote] = useState<ProblemNote | null>(null)
+  const [cardNote, setCardNote] = useState<ProblemNote | null>(null)
+  const [targetDeckId, setTargetDeckId] = useState<number | null>(null)
 
   const { data: notes = [], isLoading } = useQuery<ProblemNote[]>({
     queryKey: ['notebook', filter],
     queryFn: () => practiceApi.notebook(filter || undefined),
+  })
+  const { data: decks = [] } = useQuery<Deck[]>({
+    queryKey: ['decks'],
+    queryFn: deckApi.list,
   })
 
   const toggleStarMut = useMutation({
@@ -47,6 +53,14 @@ export default function NotebookPage() {
   const retryMut = useMutation({
     mutationFn: ({ id, quality }: { id: number; quality: number }) => practiceApi.retry(id, quality),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['notebook'] }); setRetryNote(null) },
+  })
+  const toCardMut = useMutation({
+    mutationFn: () => practiceApi.toCard(cardNote!.problemId, targetDeckId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['decks'] })
+      setCardNote(null)
+      setTargetDeckId(null)
+    },
   })
 
   const handleAiAnalysis = async () => {
@@ -132,9 +146,17 @@ export default function NotebookPage() {
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span>复习 {note.retryCount} 次</span>
                   {note.nextRetryDate && <span>下次复习：{formatDate(note.nextRetryDate)}</span>}
-                  <Button size="sm" variant="ghost" onClick={() => setRetryNote(note)}>
-                    {t('notebook.retry')}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setCardNote(note)
+                      setTargetDeckId(decks[0]?.id ?? null)
+                    }}>
+                      <Layers className="w-3.5 h-3.5" />转成卡片
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRetryNote(note)}>
+                      {t('notebook.retry')}
+                    </Button>
+                  </div>
                 </div>
               </CardBody>
             </Card>
@@ -165,6 +187,37 @@ export default function NotebookPage() {
               </button>
             ))}
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!cardNote} onClose={() => setCardNote(null)} title="错题转成复习卡" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            《{cardNote?.problemTitle}》的错误原因和复盘笔记会组成一张主动回忆卡。
+          </p>
+          {decks.length > 0 ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">目标牌组</label>
+                <select
+                  value={targetDeckId ?? ''}
+                  onChange={e => setTargetDeckId(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {decks.map(deck => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+                </select>
+              </div>
+              {toCardMut.isError && <p className="text-sm text-red-500">转卡失败，请重试。</p>}
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => setCardNote(null)}>取消</Button>
+                <Button onClick={() => toCardMut.mutate()} loading={toCardMut.isPending} disabled={!targetDeckId}>
+                  <Layers className="w-4 h-4" />生成卡片
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">还没有可用牌组，请先在牌组页创建一个。</p>
+          )}
         </div>
       </Modal>
     </div>

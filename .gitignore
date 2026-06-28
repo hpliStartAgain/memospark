@@ -1,7 +1,22 @@
 HELP.md
 target/
 logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+*.h2.db
+*.mv.db
+*.trace.db
 .agent/*.log
+.agent/**/*.log
+.agent/**/*.sql
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -36,6 +51,8 @@ build/
 
 ### OS ###
 .DS_Store
+Thumbs.db
+desktop.ini
 
 ### Local config with secrets ###
 src/main/resources/application-local.properties
@@ -47,6 +64,21 @@ src/main/resources/application-local.properties
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.development
+**/.env.test
+**/.env.production
+!**/.env.example
+!**/.env.production.example
+*.pem
+*.key
+*.p12
+*.jks
 
 ### Debug/test JSON files committed by mistake ###
 cookies.txt
@@ -67,15 +99,26 @@ frontend/node_modules/
 frontend/.vite/
 frontend/dist/
 frontend/.env
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 ### Mini Program ###
 miniprogram/node_modules/
 miniprogram/dist/
+miniprogram/.temp/
+miniprogram/.rn_temp/
+miniprogram/.swc/
 miniprogram/.env
+miniprogram/.env.production
+miniprogram/project.private.config.json
+**/project.private.config.json
 
 ### MCP Server ###
 mcp-server/node_modules/
 mcp-server/dist/
-
-### Thumbs ###
-Thumbs.db
+coverage/
+mcp-server/coverage/
+miniprogram/coverage/

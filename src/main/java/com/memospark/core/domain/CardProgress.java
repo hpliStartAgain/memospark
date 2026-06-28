@@ -28,6 +28,12 @@ public class CardProgress {
     @Column(nullable = false)
     private double easeFactor = 2.5;
 
+    @Column(nullable = false)
+    private double stability = 0.0;
+
+    @Column(nullable = false)
+    private double difficulty = 5.0;
+
     @Column(name = "review_interval", nullable = false)
     private int interval = 0;
 

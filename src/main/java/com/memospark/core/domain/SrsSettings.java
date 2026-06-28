@@ -32,6 +32,9 @@ public class SrsSettings {
     @Column(nullable = false)
     private int secondInterval = 6;
 
+    @Column(nullable = false)
+    private double desiredRetention = 0.9;
+
     public SrsSettings(User user) {
         this.user = user;
     }

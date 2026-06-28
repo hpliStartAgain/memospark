@@ -1,22 +1,25 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 import Layout from '@/components/Layout'
-import LoginPage from '@/pages/LoginPage'
-import PasswordResetPage from '@/pages/PasswordResetPage'
-import DashboardPage from '@/pages/DashboardPage'
-import TargetsPage from '@/pages/TargetsPage'
-import TargetDetailPage from '@/pages/TargetDetailPage'
-import DecksPage from '@/pages/DecksPage'
-import ReviewPage from '@/pages/ReviewPage'
-import PracticePage from '@/pages/PracticePage'
-import ProblemDetailPage from '@/pages/ProblemDetailPage'
-import NotebookPage from '@/pages/NotebookPage'
-import StatsPage from '@/pages/StatsPage'
-import SettingsPage from '@/pages/SettingsPage'
 import { PageSpinner } from '@/components/ui/Spinner'
+
+const LoginPage = lazy(() => import('@/pages/LoginPage'))
+const PasswordResetPage = lazy(() => import('@/pages/PasswordResetPage'))
+const LandingPage = lazy(() => import('@/pages/LandingPage'))
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const TargetsPage = lazy(() => import('@/pages/TargetsPage'))
+const TargetDetailPage = lazy(() => import('@/pages/TargetDetailPage'))
+const MockInterviewPage = lazy(() => import('@/pages/MockInterviewPage'))
+const DecksPage = lazy(() => import('@/pages/DecksPage'))
+const ReviewPage = lazy(() => import('@/pages/ReviewPage'))
+const PracticePage = lazy(() => import('@/pages/PracticePage'))
+const ProblemDetailPage = lazy(() => import('@/pages/ProblemDetailPage'))
+const NotebookPage = lazy(() => import('@/pages/NotebookPage'))
+const StatsPage = lazy(() => import('@/pages/StatsPage'))
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAppStore()
@@ -33,7 +36,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [data, setUser])
 
   if (isLoading && !user) return <PageSpinner />
-  if (isError && !user) return <Navigate to="/login" replace />
+  if (isError && !user) return <Navigate to="/landing" replace />
   return <>{children}</>
 }
 
@@ -46,31 +49,35 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/password-reset" element={<PasswordResetPage />} />
-        <Route
-          path="/"
-          element={
-            <AuthGuard>
-              <Layout />
-            </AuthGuard>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="targets" element={<TargetsPage />} />
-          <Route path="targets/:id" element={<TargetDetailPage />} />
-          <Route path="decks" element={<DecksPage />} />
-          <Route path="review" element={<ReviewPage />} />
-          <Route path="review/:deckId" element={<ReviewPage />} />
-          <Route path="practice" element={<PracticePage />} />
-          <Route path="practice/:id" element={<ProblemDetailPage />} />
-          <Route path="notebook" element={<NotebookPage />} />
-          <Route path="stats" element={<StatsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<PageSpinner />}>
+        <Routes>
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/password-reset" element={<PasswordResetPage />} />
+          <Route
+            path="/"
+            element={
+              <AuthGuard>
+                <Layout />
+              </AuthGuard>
+            }
+          >
+            <Route index element={<DashboardPage />} />
+            <Route path="targets" element={<TargetsPage />} />
+            <Route path="targets/:id" element={<TargetDetailPage />} />
+            <Route path="targets/:id/mock" element={<MockInterviewPage />} />
+            <Route path="decks" element={<DecksPage />} />
+            <Route path="review" element={<ReviewPage />} />
+            <Route path="review/:deckId" element={<ReviewPage />} />
+            <Route path="practice" element={<PracticePage />} />
+            <Route path="practice/:id" element={<ProblemDetailPage />} />
+            <Route path="notebook" element={<NotebookPage />} />
+            <Route path="stats" element={<StatsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

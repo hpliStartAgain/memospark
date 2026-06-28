@@ -57,7 +57,17 @@ export interface StatsSummary {
 }
 
 // ── Targets ────────────────────────────────────────────────────────────────
-export type TargetStatus = 'PREPARING' | 'INTERVIEWING' | 'CLOSED'
+export type TargetStatus =
+  | 'PREPARING'
+  | 'APPLIED'
+  | 'WRITTEN_TEST'
+  | 'INTERVIEW_1'
+  | 'INTERVIEW_2'
+  | 'HR'
+  | 'OFFER'
+  | 'REJECTED'
+  | 'INTERVIEWING'
+  | 'CLOSED'
 
 // Mirrors backend TargetSummaryDto.
 export interface TargetSummary {

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Zap } from 'lucide-react'
+import { Zap, ArrowLeft } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 import Button from '@/components/ui/Button'
@@ -23,7 +23,7 @@ export default function LoginPage() {
     onSuccess: (user) => {
       setUser(user)
       qc.invalidateQueries({ queryKey: ['me'] })
-      navigate('/decks')
+      navigate('/')
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (e: any) => {
@@ -55,9 +55,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background-light dark:from-gray-950 dark:to-gray-900 p-4">
       <div className="w-full max-w-sm">
+        {/* 返回首页 */}
+        <Link to="/landing" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors mb-6">
+          <ArrowLeft className="w-4 h-4" /> 返回首页
+        </Link>
+
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-600 mb-4">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg mb-4">
             <Zap className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">MemoSpark</h1>
@@ -65,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8">
+        <div className="bg-white/90 dark:bg-gray-900/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/70 dark:border-gray-800/70 p-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
             {mode === 'login' ? t('auth.login') : t('auth.register')}
           </h2>

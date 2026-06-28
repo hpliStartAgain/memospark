@@ -41,7 +41,7 @@ npm install
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env`，填写后端 API 地址：
+复制 `.env.example` 为 `.env`，填写后端 API 地址。小程序包不再内置 `localhost` 兜底，未配置会在请求时直接报错：
 
 ```
 TARO_APP_API_URL=https://your-memospark-domain.com
@@ -52,6 +52,14 @@ TARO_APP_API_URL=https://your-memospark-domain.com
 ### 3. 配置微信 AppID
 
 编辑 `project.config.json`，将 `"appid"` 改为你的微信小程序 AppID。
+
+推荐本机/CI 使用不入库的 `project.private.config.json` 覆盖 AppID：
+
+```json
+{
+  "appid": "wx_your_real_appid"
+}
+```
 
 在后端 `.env` 中填写：
 ```
@@ -71,10 +79,41 @@ npm run dev:weapp
 ### 5. 生产构建
 
 ```bash
-npm run build:weapp
+TARO_APP_API_URL=https://your-memospark-domain.com npm run build:weapp:prod
 ```
 
-### 6. H5 预览（可选）
+Windows PowerShell：
+
+```powershell
+$env:TARO_APP_API_URL='https://your-memospark-domain.com'
+npm run build:weapp:prod
+```
+
+生产构建会拒绝空 API URL、HTTP 地址、裸 IP host，并扫描 `dist/`，避免线上包残留 `localhost`。
+
+### 6. 上传前校验与上传
+
+```bash
+npm run validate:weapp
+WEAPP_VERSION=1.0.0 WEAPP_UPLOAD_DESC="MemoSpark 1.0.0" npm run upload:weapp
+```
+
+Windows PowerShell：
+
+```powershell
+$env:WEAPP_VERSION='1.0.0'
+$env:WEAPP_UPLOAD_DESC='MemoSpark 1.0.0'
+$env:WECHAT_DEVTOOLS_CLI='C:\Program Files\Tencent\微信web开发者工具\cli.bat'
+npm run upload:weapp
+```
+
+正式上传前必须满足：
+
+- `project.private.config.json` 或 `project.config.json` 中有真实小程序 AppID。
+- 微信开发者工具已安装并登录，或通过 `WECHAT_DEVTOOLS_CLI` 指向可用 `cli.bat`/`cli`。
+- 后端使用 HTTPS 域名，并已在微信公众平台配置服务器域名白名单。
+
+### 7. H5 预览（可选）
 
 ```bash
 npm run dev:h5

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class AiServiceTest {
 
@@ -16,7 +17,7 @@ class AiServiceTest {
 
     @BeforeEach
     void setUp() {
-        aiService = new AiService(new ObjectMapper());
+        aiService = new AiService(new ObjectMapper(), mock(AiSettingsService.class));
         ReflectionTestUtils.setField(aiService, "apiKey", "test-key");
         ReflectionTestUtils.setField(aiService, "apiUrl", "http://localhost/v1/chat");
         ReflectionTestUtils.setField(aiService, "model", "test-model");
