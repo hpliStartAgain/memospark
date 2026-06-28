@@ -1,5 +1,6 @@
 package com.memospark.core.service;
 
+import com.memospark.core.domain.DeckLinkSource;
 import com.memospark.core.domain.JobJd;
 import com.memospark.core.domain.Target;
 import com.memospark.core.domain.TargetSkill;
@@ -137,6 +138,7 @@ public class TargetService {
         int weight = clamp(req.weight() != null ? req.weight() : 3, 1, 5);
         TargetSkill skill = new TargetSkill(target, target.getUser(), req.name().trim(),
                 trimOrNull(req.category()), trimOrNull(req.description()), weight);
+        skill.setDeckLinkSource(DeckLinkSource.MANUAL);
         return toSkillDto(targetSkillRepository.save(skill));
     }
 
@@ -223,8 +225,12 @@ public class TargetService {
     private TargetSkillDto toSkillDto(TargetSkill s) {
         Long deckId = s.getDeck() != null ? s.getDeck().getId() : null;
         long cardCount = deckId != null ? cardRepository.countByDeckId(deckId) : 0L;
+        String deckName = s.getDeck() != null ? s.getDeck().getName() : null;
         return new TargetSkillDto(s.getId(), s.getName(), s.getCategory(),
-                s.getDescription(), s.getWeight(), s.getSelfLevel(), deckId, cardCount);
+                s.getDescription(), s.getWeight(), s.getSelfLevel(), deckId, cardCount,
+                s.getDeckLinkSource() != null ? s.getDeckLinkSource().name() : null,
+                deckName,
+                s.getDeckMatchScore());
     }
 
     private Long daysUntil(LocalDate date) {

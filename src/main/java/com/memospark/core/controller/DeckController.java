@@ -49,6 +49,13 @@ public class DeckController {
         return deckService.getAllDecks(principal.id(), principal.admin());
     }
 
+    @GetMapping("/{id}")
+    public DeckSummaryDto getDeck(@PathVariable Long id, @CurrentUser UserPrincipal principal) {
+        var deck = deckService.getDeckOrThrow(id);
+        deckService.verifyOwnership(deck, principal.id(), principal.admin());
+        return deckService.getDeckSummary(id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DeckSummaryDto createDeck(@RequestBody CreateDeckRequest req, @CurrentUser UserPrincipal principal) {
@@ -105,6 +112,15 @@ public class DeckController {
                 req.language(),
                 principal.id(),
                 principal.admin());
+    }
+
+    @PostMapping("/{id}/cards/govern")
+    public CardGovernanceResultDto governCards(
+            @PathVariable Long id,
+            @RequestBody(required = false) CardGovernanceRequest req,
+            @CurrentUser UserPrincipal principal) {
+        String language = req != null && req.language() != null ? req.language() : "zh";
+        return cardService.governCards(id, language, principal.id(), principal.admin());
     }
 
     @PutMapping("/{id}/cards/{cid}")

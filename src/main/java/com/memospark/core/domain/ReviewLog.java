@@ -30,6 +30,23 @@ public class ReviewLog {
 
     private Long timeSpentMs;
 
+    @Column(columnDefinition = "TEXT")
+    private String userAnswer;
+
+    @Column(length = 20)
+    private String aiGrade;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiFeedback;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiSuggestedAnswer;
+
+    @Column(length = 20)
+    private String learningMode;
+
+    private Integer aiRecommendedReviewDays;
+
     // Snapshot of CardProgress BEFORE this review (for undo)
     private int prevRepetitions;
     private double prevEaseFactor;

@@ -8,5 +8,8 @@ public record TargetSkillDto(
         int weight,
         int selfLevel,
         Long deckId,
-        long cardCount
+        long cardCount,
+        String deckLinkSource,
+        String matchedDeckName,
+        Double deckMatchScore
 ) {}

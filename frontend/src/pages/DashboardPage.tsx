@@ -1,15 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { statsApi, practiceApi, targetApi } from '@/lib/api'
+import { statsApi, practiceApi, targetApi, planApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
 import { PageSpinner } from '@/components/ui/Spinner'
 import Card, { CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ReadinessRing from '@/components/ReadinessRing'
-import type { Stats, TargetSummary, TargetDetail, ProblemNote } from '@/types'
+import type { Stats, TargetSummary, TargetDetail, ProblemNote, StudyPlan, StudyPlanItem } from '@/types'
 import {
   BookOpen, AlertTriangle, Lightbulb, Target as TargetIcon, ArrowRight,
   Flame, CheckCircle2, CalendarClock, Plus, Sparkles, Code2, Bot, BarChart3,
+  CalendarRange,
 } from 'lucide-react'
 
 function greeting() {
@@ -87,6 +88,16 @@ export default function DashboardPage() {
     queryFn: () => targetApi.get(primary!.id),
     enabled: !!primary,
   })
+  const { data: primaryPlan } = useQuery<StudyPlan | null>({
+    queryKey: ['plan', primary?.id],
+    queryFn: () => planApi.get(primary!.id),
+    enabled: !!primary,
+    retry: false,
+  })
+  const { data: todayPlan = [] } = useQuery<StudyPlanItem[]>({
+    queryKey: ['plan', 'today'],
+    queryFn: planApi.today,
+  })
 
   if (sl || nl || tl) return <PageSpinner />
 
@@ -98,6 +109,7 @@ export default function DashboardPage() {
     .filter(s => s.selfLevel < 3)
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 3)
+  const remainingPlanItems = todayPlan.filter(item => !item.completed)
 
   // 备考进度：今日任务完成度
   const totalTasks = dueCards + dueNotes.length + weakSkills.length
@@ -180,6 +192,16 @@ export default function DashboardPage() {
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">今日任务</h2>
             </CardHeader>
             <CardBody className="space-y-2.5">
+              <TaskRow icon={CalendarRange} color="bg-emerald-600"
+                title={primaryPlan
+                  ? `${remainingPlanItems.length} 项计划待完成`
+                  : '生成目标岗位学习计划'}
+                desc={primaryPlan
+                  ? (remainingPlanItems[0]?.title || '今天的计划已经完成')
+                  : '把 JD、牌组和复习节奏排成每天可执行的路线'}
+                count={primaryPlan ? remainingPlanItems.length : 1}
+                cta={primaryPlan ? '看计划' : '去规划'}
+                onClick={() => navigate(primary ? `/plans/${primary.id}` : '/targets')} />
               <TaskRow icon={BookOpen} color="bg-orange-500"
                 title={`复习 ${dueCards} 张到期闪卡`} desc="保持记忆曲线，背诵八股不遗忘"
                 count={dueCards} cta="去复习" onClick={() => navigate('/review')} />
@@ -264,6 +286,7 @@ export default function DashboardPage() {
               <QuickEntry icon={Code2} title="LeetCode 刷题" desc="Hot 100 在线评测" to="/practice" />
               <QuickEntry icon={BookOpen} title="闪卡牌组" desc="管理复习卡片" to="/decks" />
               <QuickEntry icon={TargetIcon} title="目标岗位" desc="JD 拆解与就绪度" to="/targets" />
+              <QuickEntry icon={CalendarRange} title="学习计划" desc="路线、周目标与今日动作" to={primary ? `/plans/${primary.id}` : '/plans'} />
               <QuickEntry icon={Bot} title="AI 模拟面试" desc="按目标岗位出题" to={primary ? `/targets/${primary.id}/mock` : '/targets'} />
               <QuickEntry icon={BarChart3} title="数据看板" desc="学习曲线与保留率" to="/stats" />
             </CardBody>

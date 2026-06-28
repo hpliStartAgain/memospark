@@ -2,31 +2,26 @@
 
 Ready state:
 
-- Backend tests pass.
-- Web, MCP, and mini-program builds pass.
-- Maven package produces `target/memospark-0.0.1-SNAPSHOT.jar`.
-- Runtime and documentation configuration are aligned around the documented environment variable names.
+- JD analysis now performs high-confidence reuse of existing custom decks before creating AI-generated decks.
+- Target skill deck links carry `AI_CREATED`, `MATCHED_EXISTING`, or `MANUAL` source metadata.
+- Deleting a matched skill does not delete the reused deck; deleting an AI-created skill still deletes its generated deck.
+- Review cards now support answer-first AI evaluation, follow-up explanation, answer replacement, and evidence-backed SRS submission.
+- Web static assets under `src/main/resources/static` have been regenerated.
 
-CI/CD deployment state:
+Key files:
 
-- GitHub Actions workflow now includes deploy after tests and Docker build validation.
-- Repository secrets are configured: `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.
-- Server production directory is `/opt/memospark`.
-- Server production env file is `/opt/memospark/.env` and is intentionally not in git.
-- Current production container is `memospark-app`, exposed at `117.72.99.55:8080`, and healthy.
-- Flyway history on production MySQL includes V1-V5; target interview tables exist.
+- `src/main/java/com/memospark/core/service/TargetSkillService.java`
+- `src/main/java/com/memospark/core/service/ReviewService.java`
+- `src/main/java/com/memospark/core/service/AiService.java`
+- `frontend/src/pages/ReviewPage.tsx`
+- `src/main/resources/db/migration/V10__jd_deck_reuse_and_review_evidence.sql`
 
-Remaining local-environment action:
+Verification:
 
-- Local Docker Desktop / `com.docker.service` was previously unavailable; remote Docker build passed. If local Docker validation is still desired, start Docker Desktop and rerun:
+- `frontend/ npm run build` passed.
+- Targeted backend tests passed.
+- Full `.\mvnw.cmd test` passed after clearing a stale Windows file lock in `target/classes/static/assets`.
 
-```powershell
-docker build -t memospark:codex-verify .
-docker compose up --build
-```
+Remaining action:
 
-Review before commit:
-
-- The worktree contains pre-existing frontend and mini-program edits. Review them together with the fixes from this pass before staging.
-- `replace.js` and `replace.py` are untracked pre-existing helper files and were left untouched.
-- Commit and push are still required for GitHub Actions to take over future deployments from the repository.
+- Review, commit, and push when ready. No deployment was run from this session.

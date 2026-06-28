@@ -1,95 +1,61 @@
 ---
-status: done
+status: in_progress
 branch: main
-owner: devin
-updated: 2026-06-28 19:05
+owner: codex
+updated: 2026-06-28 20:42
 tier: COMPLEX
 ---
 
 ## 1. 需求理解
 
-- 遵循「视差滚动」风格提示的布局与交互动效规则，但**不改动既定配色（Claude Terracotta `#da7756` + Off-white）和字体（Inter + JetBrains Mono）**。
-- 把首页改为左右布局或更精致 modern 的布局。
-- 添加更多产品介绍内容。
-- 更新项目 icon 使其更有设计感。
-- 范围：新增公开 Landing 页 + 重构登录后 Dashboard 为左右两栏 + 全局基础组件升级动效 + icon/manifest 重新设计。
+- 修复服务端直接访问 `/landing` 时未回退到 SPA 的错误；取消独立登录页，把登录/注册作为 landing 最后的完整步骤。
+- 重写 landing：更短、更克制，以“目标 -> 路线 -> 今天 -> 复盘”讲清产品，不罗列 AI 功能。
+- 在 JD、技能、牌组和复习之间加入“学习计划”载体：覆盖长期阶段、滚动周计划和每日动作，可重新生成。
+- 补齐牌组卡片管理入口及新增、编辑、删除、筛选、批量治理能力。
+- 为卡片增加内容难度、学习阶段和阶段内顺序；AI 可批量治理，但用户始终可手动修订。
+- 区分首次学习与后续复习：首次学习采用引导式反馈和宽容评分，AI 可在边界内建议首次复习日期。
+- 以 hpli 已上传 JD 为事实源，治理既有牌组并补齐足量、可直接复习的高质量卡片。
 
-## 2. 设计方案
+## 2. 设计决策
 
-### 2.1 路由策略
-- 新增 `/landing` 公开路由（产品介绍页，视差滚动全屏区块）。
-- `/` 路由：未登录 → 重定向到 `/landing`；已登录 → Dashboard。
-- `/login` 页面增加「返回首页」链接到 `/landing`。
-- Landing 页 CTA：「立即登录」→ `/login`，「进入工作台」→ `/`（已登录则进 Dashboard）。
+- [x] 计划采用混合调度：AI 负责路线、优先级和阶段目标；系统负责生成可执行的周/日任务和约束复习日期。
+- [x] 计划采用滚动 4 周执行窗，并保留直到目标日期的长期阶段，避免一次生成 365 天脆弱日程。
+- [x] 卡片内容元数据使用 `EASY|MEDIUM|HARD`、`FOUNDATION|ADVANCED|PRACTICE` 与 `stage_order`。
+- [x] `card_progress.difficulty` 继续表示 FSRS 记忆难度；卡片内容难度独立为 `cards.content_difficulty`，避免语义冲突。
+- [x] 首次复习日期允许 AI 建议，但服务端按评分和学习模式限制区间，FSRS 仍是后续复习的主调度器。
+- [x] AI 治理为显式批量动作，并返回/保存治理结果；日常浏览和复习不做阻塞式 AI 调用。
 
-### 2.2 Landing 页（视差滚动风格）
-- 全屏区块（`min-h-screen`）+ `bg-fixed` 背景图（CSS 渐变模拟，避免外部资源）创造深度视差。
-- 区块节奏：Hero（左右布局：左文案+CTA，右产品视觉/就绪度环示意）→ 功能矩阵（卡片网格）→ 刷题+复习+面试就绪度三段产品介绍（左右交替）→ MCP/AI 集成介绍 → 数据统计 → CTA 收尾。
-- 移动端 `bg-fixed` 降级为 `bg-local`（iOS Safari 不支持 fixed），通过媒体查询处理。
-- 动效：`backdrop-blur-md rounded-full` 胶囊按钮、`backdrop-blur-sm rounded-2xl` 卡片、`hover:-translate-y-1`、`transition-all duration-300`、`active:scale-95`。
-- 顶部导航栏：固定 + 滚动后 `backdrop-blur` 玻璃态。
+## 3. 实现阶段
 
-### 2.3 Dashboard 重构（左右两栏）
-- 左栏（`lg:col-span-2`）：问候语 + 主目标就绪度卡（含 ReadinessRing + 倒计时）+ 今日任务清单。
-- 右栏（`lg:col-span-1`）：快速统计竖排卡（连续天数/今日复习/保留率）+ 薄弱技能 + 产品功能快捷入口（新增「产品介绍」模块，引导到 Landing 或直接展示功能）。
-- 顶部加一行「备考进度条」横向统计带。
+### A. 数据与后端
 
-### 2.4 全局基础组件升级（保留 API，仅调样式/动效）
-- `Card`：`rounded-xl` → `rounded-2xl`，加 `backdrop-blur-sm`，`hoverable` 动效升级为 `hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300`。
-- `Button`：加 `active:scale-95 transition-all duration-300`，hover 增加细微位移；保留现有 `rounded-md/lg` 圆角（避免 11 个页面按钮全部胶囊化破坏表单视觉），Landing 页内部用自定义胶囊按钮。
-- `Input`：加 `backdrop-blur-sm transition-all duration-300`，focus 增加阴影；保留 `rounded-lg`。
-- 不改 `Badge`、`Modal`、`Spinner`（风险/收益不匹配）。
+- [x] 新增 Flyway V11：卡片治理字段、AI 首次复习证据、学习计划表。
+- [x] 扩展卡片 CRUD DTO，新增牌组详情、批量 AI 治理 API。
+- [x] 新增计划生成、读取、重新生成 API 与动态完成度。
+- [x] 复习队列按“到期优先、阶段、阶段内顺序”排序。
+- [x] 首次学习使用宽容/引导式 AI prompt，并应用受约束的 AI 复习间隔。
+- [ ] 添加/更新后端单元测试。
 
-### 2.5 Icon 重新设计
-- 抛弃蓝色 `#0ea5e9` 圆角矩形 + 白闪电的旧方案（与 Terracotta 配色冲突）。
-- 新方案：Terracotta 渐变圆角方形背景 + 白色「记忆火花」图形（闪电 + 重复循环弧线组合，呼应 SRS 间隔重复 + 火花点亮记忆的产品理念）。
-- 同步更新 `favicon.svg`、`icon.svg`、`manifest.webmanifest`（`theme_color`/`background_color` 改为 Terracotta 系）、`index.html` 的 `theme-color`。
+### B. Web 体验
 
-### 2.6 风格自检约束
-- 禁止 `bg-scroll`、`rounded-none`、`shadow-none`。
-- 禁止紫蓝渐变、渐变文字、bounce/elastic 缓动。
-- 动效提供 `prefers-reduced-motion` 降级。
-- 正文对比度 ≥ WCAG AA。
-- 保留 Terracotta 配色与 Inter/JetBrains Mono 字体不变。
+- [ ] 合并 landing/login，保留 `/login` 兼容跳转；补齐服务端 SPA 路由。
+- [ ] 精简 landing 文案和结构，登录区位于页面底部。
+- [ ] 新增学习计划页、目标详情入口和 Dashboard 今日计划。
+- [ ] 新增牌组详情/卡片管理页，卡片操作入口常驻可见。
+- [ ] 复习页区分“首次学习 / 间隔复习”，展示阶段、难度和 AI 下次复习建议。
+- [ ] 更新类型、API、i18n 和静态构建产物。
 
-## 3. 阶段划分
+### C. hpli 数据治理
 
-- [x] Phase 1: 重新设计 icon + 更新 manifest/index.html theme-color
-- [x] Phase 2: 升级基础组件 Card/Button/Input 动效
-- [x] Phase 3: 新增 LandingPage（视差滚动产品介绍）
-- [x] Phase 4: 重构 DashboardPage 为左右两栏 + 产品介绍模块
-- [x] Phase 5: 路由接入 Landing + LoginPage 增加返回首页链接
-- [x] Phase 6: 构建验证（tsc + vite build）+ 风格自检
+- [ ] 只读导出 hpli 的 JD、牌组、卡片与进度快照。
+- [ ] 生成治理预览：保留/合并/补齐策略、卡片数量、阶段分布与质量检查。
+- [ ] 以可回滚事务执行已授权的定向治理，不覆盖用户复习历史。
+- [ ] 回读核验每个牌组的数量、难度/阶段分布和答案完整度。
 
-## 4. 文件级任务
+## 4. 验证与收尾
 
-| 文件 | 动作 | 说明 |
-|------|------|------|
-| frontend/public/favicon.svg | MODIFY | 新设计图标 |
-| frontend/public/icon.svg | MODIFY | 同 favicon |
-| frontend/public/manifest.webmanifest | MODIFY | theme_color/background_color 改 Terracotta |
-| frontend/index.html | MODIFY | theme-color 改 Terracotta |
-| frontend/src/components/ui/Card.tsx | MODIFY | rounded-2xl + backdrop-blur-sm + hover 动效 |
-| frontend/src/components/ui/Button.tsx | MODIFY | active:scale-95 + transition-all |
-| frontend/src/components/ui/Input.tsx | MODIFY | backdrop-blur-sm + transition-all + focus 阴影 |
-| frontend/src/pages/LandingPage.tsx | NEW | 视差滚动产品介绍页 |
-| frontend/src/pages/DashboardPage.tsx | MODIFY | 重构为左右两栏 + 产品介绍模块 |
-| frontend/src/App.tsx | MODIFY | 接入 /landing 路由 + / 重定向逻辑 |
-| frontend/src/pages/LoginPage.tsx | MODIFY | 增加「返回首页」链接 |
-
-## 5. 外部变更（必须显式列出）
-
-- [ ] 无数据库迁移
-- [ ] 无新增依赖（全部用现有 Tailwind + lucide-react）
-- [ ] 无新增环境变量
-- [ ] 无配置文件变更（仅 manifest/index.html 主题色）
-
-## 6. 待确认问题（@老板）
-
-- Q1: Landing 页是否需要中英双语？（现有项目有 i18n，默认按中文实现，i18n key 后续可补）
-- Q2: Dashboard 右栏「产品功能快捷入口」是跳转到对应功能页，还是展示静态介绍？默认前者（快捷入口卡）。
-
-## 7. 备选方案
-
-- 方案 A（采用）：新增独立 Landing + 重构 Dashboard + 全局组件动效升级。覆盖最全，风险可控。
-- 方案 B：仅重构 Dashboard 加入产品介绍。工作量小，但未登录访客无产品介绍入口，不符合「添加更多产品介绍」预期。
+- [ ] 前端类型检查与生产构建。
+- [ ] 后端 targeted tests 与完整 Maven tests。
+- [ ] Playwright 验证 `/landing`、底部登录、计划生成、卡片编辑和首次学习流程。
+- [ ] 更新 `CHANGELOG.md`、`.agent/` 三件套和 Notion 任务记录。
+- [ ] 不自动 commit、push 或 deploy。

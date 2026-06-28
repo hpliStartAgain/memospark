@@ -31,6 +31,22 @@ public class Card {
     @Column(length = 500)
     private String tags;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private CardDifficulty contentDifficulty = CardDifficulty.MEDIUM;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private LearningStage learningStage = LearningStage.FOUNDATION;
+
+    @Column(nullable = false)
+    private int stageOrder = 0;
+
+    @Column(length = 500)
+    private String governanceNote;
+
+    private LocalDateTime governedAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

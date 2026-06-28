@@ -42,5 +42,11 @@ public interface CardProgressRepository extends JpaRepository<CardProgress, Long
     @Query("SELECT COUNT(cp) FROM CardProgress cp JOIN cp.card c WHERE c.deck.id = :deckId AND cp.firstLearnedDate = :date")
     long countFirstLearnedTodayByDeckId(@Param("deckId") Long deckId, @Param("date") LocalDate date);
 
+    @Query("SELECT COUNT(cp) FROM CardProgress cp JOIN cp.card c WHERE c.deck.id = :deckId AND cp.firstLearnedDate = :date AND c.learningStage = :stage")
+    long countFirstLearnedByDeckIdAndDateAndStage(
+            @Param("deckId") Long deckId,
+            @Param("date") LocalDate date,
+            @Param("stage") com.memospark.core.domain.LearningStage stage);
+
     void deleteByCardId(Long cardId);
 }

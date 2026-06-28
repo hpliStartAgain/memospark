@@ -1,12 +1,15 @@
 package com.memospark.core.service;
 
 import com.memospark.core.domain.*;
+import com.memospark.core.dto.AnswerEvaluationDto;
+import com.memospark.core.dto.AnswerEvaluationRequest;
 import com.memospark.core.dto.ReviewCardDto;
 import com.memospark.core.dto.ReviewRequest;
 import com.memospark.core.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,6 +33,7 @@ class ReviewServiceTest {
     @Mock private DeckRepository deckRepository;
     @Mock private DeckService deckService;
     @Mock private SpacedRepetitionService srsService;
+    @Mock private AiService aiService;
 
     @InjectMocks
     private ReviewService reviewService;
@@ -67,6 +71,61 @@ class ReviewServiceTest {
         verify(srsService).applyReview(progress, 5, 1L);
         verify(cardProgressRepository).save(progress);
         verify(reviewLogRepository).save(any(ReviewLog.class));
+    }
+
+    @Test
+    void submitReview_withAiEvidence_savesAnswerFields() {
+        when(cardService.getCardOrThrow(10L)).thenReturn(card);
+        when(cardProgressRepository.findByCardId(10L)).thenReturn(Optional.of(progress));
+
+        reviewService.submitReview(10L,
+                new ReviewRequest(4, 7000L, "RDB 和 AOF", "B", "基本正确", "RDB 快照加 AOF 日志"),
+                1L);
+
+        ArgumentCaptor<ReviewLog> captor = ArgumentCaptor.forClass(ReviewLog.class);
+        verify(reviewLogRepository).save(captor.capture());
+        ReviewLog saved = captor.getValue();
+        assertEquals("RDB 和 AOF", saved.getUserAnswer());
+        assertEquals("B", saved.getAiGrade());
+        assertEquals("基本正确", saved.getAiFeedback());
+        assertEquals("RDB 快照加 AOF 日志", saved.getAiSuggestedAnswer());
+    }
+
+    @Test
+    void evaluateAnswer_returnsStructuredAiEvaluationWithoutScheduling() {
+        AnswerEvaluationDto evaluation = new AnswerEvaluationDto(
+                "B", 4, 82, "Good", List.of("tradeoff"), "Suggested");
+        when(cardService.getCardOrThrow(10L)).thenReturn(card);
+        when(cardProgressRepository.findByCardId(10L)).thenReturn(Optional.of(progress));
+        when(aiService.evaluateFlashcardAnswer("front", "back", "answer", false, 1L)).thenReturn(evaluation);
+
+        AnswerEvaluationDto result = reviewService.evaluateAnswer(
+                10L, new AnswerEvaluationRequest("answer"), 1L);
+
+        assertEquals("B", result.grade());
+        assertEquals(4, result.quality());
+        verify(srsService, never()).applyReview(any(), anyInt(), anyLong());
+        verify(reviewLogRepository, never()).save(any());
+    }
+
+    @Test
+    void submitReview_firstLearning_boundsAiReviewInterval() {
+        progress.setLastReviewDate(null);
+        progress.setFirstLearnedDate(null);
+        when(cardService.getCardOrThrow(10L)).thenReturn(card);
+        when(cardProgressRepository.findByCardId(10L)).thenReturn(Optional.of(progress));
+
+        reviewService.submitReview(
+                10L,
+                new ReviewRequest(2, 5000L, "partial", "D", "needs work", "answer", 10),
+                1L);
+
+        assertEquals(1, progress.getInterval());
+        assertEquals(LocalDate.now().plusDays(1), progress.getNextReviewDate());
+        ArgumentCaptor<ReviewLog> captor = ArgumentCaptor.forClass(ReviewLog.class);
+        verify(reviewLogRepository).save(captor.capture());
+        assertEquals("LEARNING", captor.getValue().getLearningMode());
+        assertEquals(10, captor.getValue().getAiRecommendedReviewDays());
     }
 
     @Test

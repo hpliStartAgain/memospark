@@ -4,6 +4,10 @@ import com.memospark.core.domain.Card;
 import com.memospark.core.domain.CardProgress;
 import com.memospark.core.domain.Deck;
 import com.memospark.core.domain.ReviewLog;
+import com.memospark.core.dto.AnswerEvaluationDto;
+import com.memospark.core.dto.AnswerEvaluationRequest;
+import com.memospark.core.dto.AnswerExplanationDto;
+import com.memospark.core.dto.AnswerExplanationRequest;
 import com.memospark.core.dto.ReviewCardDto;
 import com.memospark.core.dto.ReviewRequest;
 import com.memospark.core.repository.CardProgressRepository;
@@ -31,6 +35,7 @@ public class ReviewService {
     private final DeckRepository deckRepository;
     private final DeckService deckService;
     private final SpacedRepetitionService srsService;
+    private final AiService aiService;
 
     @Transactional(readOnly = true)
     public List<ReviewCardDto> getTodaysDueCards(Long userId) {
@@ -81,10 +86,28 @@ public class ReviewService {
         // Separate review cards and new cards
         List<CardProgress> reviewCards = dueCards.stream()
                 .filter(cp -> cp.getLastReviewDate() != null)
+                .sorted(Comparator
+                        .comparing(CardProgress::getNextReviewDate)
+                        .thenComparing(cp -> cp.getCard().getLearningStage())
+                        .thenComparingInt(cp -> cp.getCard().getStageOrder()))
                 .toList();
         List<CardProgress> newCards = dueCards.stream()
                 .filter(cp -> cp.getLastReviewDate() == null)
                 .toList();
+
+        if (!newCards.isEmpty()) {
+            var activeStage = newCards.stream()
+                    .map(cp -> cp.getCard().getLearningStage())
+                    .min(Comparator.naturalOrder())
+                    .orElse(com.memospark.core.domain.LearningStage.FOUNDATION);
+            newCards = newCards.stream()
+                    .filter(cp -> cp.getCard().getLearningStage() == activeStage)
+                    .sorted(Comparator
+                            .comparingInt((CardProgress cp) -> cp.getCard().getStageOrder())
+                            .thenComparing(cp -> cp.getCard().getContentDifficulty())
+                            .thenComparing(cp -> cp.getCard().getId()))
+                    .toList();
+        }
 
         // Apply daily new card limit
         if (newCardLimit != null && newCardLimit > 0) {
@@ -117,9 +140,16 @@ public class ReviewService {
         deckService.verifyOwnership(card.getDeck(), userId, false);
         CardProgress progress = cardProgressRepository.findByCardId(cardId)
                 .orElseThrow(() -> new NoSuchElementException("No progress record for card: " + cardId));
+        boolean firstLearning = progress.getLastReviewDate() == null;
 
         // Snapshot before review (for undo)
         ReviewLog log = new ReviewLog(card, req.quality(), req.timeSpentMs());
+        log.setUserAnswer(trimOrNull(req.userAnswer()));
+        log.setAiGrade(trimOrNull(req.aiGrade()));
+        log.setAiFeedback(trimOrNull(req.aiFeedback()));
+        log.setAiSuggestedAnswer(trimOrNull(req.aiSuggestedAnswer()));
+        log.setLearningMode(firstLearning ? "LEARNING" : "REVIEW");
+        log.setAiRecommendedReviewDays(req.aiRecommendedReviewDays());
         log.setPrevRepetitions(progress.getRepetitions());
         log.setPrevEaseFactor(progress.getEaseFactor());
         log.setPrevStability(progress.getStability());
@@ -130,10 +160,53 @@ public class ReviewService {
         log.setPrevFirstLearnedDate(progress.getFirstLearnedDate());
 
         srsService.applyReview(progress, req.quality(), userId);
+        if (firstLearning && req.aiRecommendedReviewDays() != null) {
+            int reviewDays = boundedFirstReviewDays(req.aiRecommendedReviewDays(), req.quality());
+            progress.setInterval(reviewDays);
+            progress.setNextReviewDate(LocalDate.now().plusDays(reviewDays));
+        }
         cardProgressRepository.save(progress);
         reviewLogRepository.save(log);
 
         return toReviewCardDto(card, progress);
+    }
+
+    @Transactional(readOnly = true)
+    public AnswerEvaluationDto evaluateAnswer(Long cardId, AnswerEvaluationRequest req, Long userId) {
+        Card card = cardService.getCardOrThrow(cardId);
+        deckService.verifyOwnership(card.getDeck(), userId, false);
+        String answer = req != null ? trimOrNull(req.userAnswer()) : null;
+        if (answer == null) {
+            answer = "";
+        }
+        CardProgress progress = cardProgressRepository.findByCardId(cardId)
+                .orElseThrow(() -> new NoSuchElementException("No progress record for card: " + cardId));
+        boolean firstLearning = progress.getLastReviewDate() == null;
+        return aiService.evaluateFlashcardAnswer(
+                card.getFront(), card.getBack(), answer, firstLearning, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public AnswerExplanationDto explainAnswer(Long cardId, AnswerExplanationRequest req, Long userId) {
+        Card card = cardService.getCardOrThrow(cardId);
+        deckService.verifyOwnership(card.getDeck(), userId, false);
+        String message = req != null ? trimOrNull(req.message()) : null;
+        if (message == null) {
+            throw new IllegalArgumentException("Message is required");
+        }
+        String answer = req.userAnswer() != null ? req.userAnswer() : "";
+        CardProgress progress = cardProgressRepository.findByCardId(cardId)
+                .orElseThrow(() -> new NoSuchElementException("No progress record for card: " + cardId));
+        boolean firstLearning = progress.getLastReviewDate() == null;
+        String reply = aiService.explainFlashcardAnswer(
+                card.getFront(),
+                card.getBack(),
+                answer,
+                req.history(),
+                message,
+                firstLearning,
+                userId);
+        return new AnswerExplanationDto(reply);
     }
 
     @Transactional
@@ -189,11 +262,32 @@ public class ReviewService {
                 card.getFront(),
                 card.getBack(),
                 card.getTags(),
+                card.getContentDifficulty().name(),
+                card.getLearningStage().name(),
+                card.getStageOrder(),
+                card.getGovernanceNote(),
                 progress.getRepetitions(),
                 progress.getEaseFactor(),
                 progress.getInterval(),
                 progress.getNextReviewDate(),
                 progress.getLastReviewDate() == null
         );
+    }
+
+    private String trimOrNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private int boundedFirstReviewDays(int recommendedDays, int quality) {
+        int max = switch (quality) {
+            case 0, 1, 2 -> 1;
+            case 3 -> 3;
+            case 4 -> 7;
+            case 5 -> 14;
+            default -> 3;
+        };
+        return Math.max(1, Math.min(recommendedDays, max));
     }
 }

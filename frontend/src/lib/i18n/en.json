@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "targets": "Targets",
+    "plans": "Plan",
     "decks": "Decks",
     "review": "Review",
     "practice": "Practice",
@@ -69,7 +70,16 @@
     "progress": "{{done}} / {{total}}",
     "aiGrade": "AI Grade",
     "yourAnswer": "Your Answer",
-    "grading": "Grading..."
+    "grading": "Grading...",
+    "answerPlaceholder": "Answer from memory first, then ask AI to review...",
+    "submitAiReview": "Submit for AI Review",
+    "revealAnswer": "Reveal Answer",
+    "referenceAnswer": "Reference Answer",
+    "finalAnswer": "Final Answer",
+    "replaceAnswer": "Replace Reference",
+    "followUpPlaceholder": "Ask a follow-up about this card...",
+    "ask": "Ask",
+    "confirmMastery": "Confirm and Continue"
   },
   "practice": {
     "title": "Algorithm Practice",

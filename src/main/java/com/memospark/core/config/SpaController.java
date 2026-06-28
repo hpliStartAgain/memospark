@@ -12,9 +12,12 @@ public class SpaController {
 
     @RequestMapping(value = {
             "/",
+            "/landing",
             "/login",
+            "/password-reset",
             "/dashboard/**",
             "/targets/**",
+            "/plans/**",
             "/decks/**",
             "/review/**",
             "/practice/**",

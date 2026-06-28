@@ -2,6 +2,10 @@ package com.memospark.core.controller;
 
 import com.memospark.core.config.CurrentUser;
 import com.memospark.core.config.UserPrincipal;
+import com.memospark.core.dto.AnswerEvaluationDto;
+import com.memospark.core.dto.AnswerEvaluationRequest;
+import com.memospark.core.dto.AnswerExplanationDto;
+import com.memospark.core.dto.AnswerExplanationRequest;
 import com.memospark.core.dto.ReviewCardDto;
 import com.memospark.core.dto.ReviewRequest;
 import com.memospark.core.service.ReviewService;
@@ -34,6 +38,20 @@ public class ReviewController {
                                       @RequestBody ReviewRequest req,
                                       @CurrentUser UserPrincipal principal) {
         return reviewService.submitReview(cardId, req, principal.id());
+    }
+
+    @PostMapping("/{cardId}/evaluate-answer")
+    public AnswerEvaluationDto evaluateAnswer(@PathVariable Long cardId,
+                                              @RequestBody(required = false) AnswerEvaluationRequest req,
+                                              @CurrentUser UserPrincipal principal) {
+        return reviewService.evaluateAnswer(cardId, req, principal.id());
+    }
+
+    @PostMapping("/{cardId}/explain-answer")
+    public AnswerExplanationDto explainAnswer(@PathVariable Long cardId,
+                                              @RequestBody AnswerExplanationRequest req,
+                                              @CurrentUser UserPrincipal principal) {
+        return reviewService.explainAnswer(cardId, req, principal.id());
     }
 
     @GetMapping("/hard")

@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "驾驶舱",
     "targets": "目标岗位",
+    "plans": "学习计划",
     "decks": "牌组",
     "review": "复习",
     "practice": "算法",
@@ -69,7 +70,16 @@
     "progress": "{{done}} / {{total}}",
     "aiGrade": "AI 评分",
     "yourAnswer": "你的回答",
-    "grading": "评分中..."
+    "grading": "评分中...",
+    "answerPlaceholder": "先按自己的理解回答，再提交给 AI 评审...",
+    "submitAiReview": "提交 AI 评审",
+    "revealAnswer": "直接翻面",
+    "referenceAnswer": "参考答案",
+    "finalAnswer": "最终答案",
+    "replaceAnswer": "替换标准答案",
+    "followUpPlaceholder": "继续追问这个问题...",
+    "ask": "追问",
+    "confirmMastery": "确认并进入下一张"
   },
   "practice": {
     "title": "算法练习",

@@ -119,6 +119,11 @@ public class DeckService {
 
         for (Card srcCard : cardRepository.findByDeckId(poolDeckId)) {
             Card card = new Card(copy, srcCard.getFront(), srcCard.getBack(), srcCard.getTags());
+            card.setContentDifficulty(srcCard.getContentDifficulty());
+            card.setLearningStage(srcCard.getLearningStage());
+            card.setStageOrder(srcCard.getStageOrder());
+            card.setGovernanceNote(srcCard.getGovernanceNote());
+            card.setGovernedAt(srcCard.getGovernedAt());
             card = cardRepository.save(card);
             CardProgress progress = new CardProgress(card);
             srsService.initProgress(progress, user.getId());

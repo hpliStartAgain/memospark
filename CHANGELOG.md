@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-06-28 — JD 牌组命中复用 + 问答式 AI 复习闭环
+
+- JD 技能分析改为先匹配用户已有 `CUSTOM` 牌组：综合技能名、牌组名、描述、标签和样例卡片内容打分，默认 `0.72` 以上自动复用，避免 Kubernetes/K8s 等同主题重复创建牌组。
+- 新增 Flyway `V10__jd_deck_reuse_and_review_evidence.sql`：`target_skills` 增加 `deck_link_source` / `deck_match_score`，`review_logs` 增加用户答案与 AI 评审证据字段。
+- 新增 `DeckLinkSource`：删除技能时只删除 `AI_CREATED` 牌组，`MATCHED_EXISTING` 复用牌组不会被误删；手动添加技能标记为 `MANUAL`。
+- `TargetSkillDto` 增加牌组来源、命中牌组名和命中分；目标详情页展示“复用牌组 / AI 新建牌组 / 手动技能”状态。
+- 新增复习问答 API：`POST /api/review/{cardId}/evaluate-answer` 结构化返回 `grade/quality/score/feedback/missingPoints/suggestedAnswer`；`POST /api/review/{cardId}/explain-answer` 支持用户围绕本题继续追问。
+- 扩展 `ReviewRequest`，最终 SRS 提交可保存 `userAnswer`、`aiGrade`、`aiFeedback`、`aiSuggestedAnswer` 到 `review_logs`。
+- 重构复习页为“先回答 → AI 评审 → 追问解释 → 确认质量分 → 进入下一张”，保留直接翻面/手动评分旁路，并支持把最终答案替换原卡片标准答案。
+- 语音转文本暂不接入，仅在回答区预留禁用的语音按钮入口，不申请录音权限。
+
+### Verification
+
+- Passed: `frontend/ npm run build`（`tsc && vite build`）。
+- Passed: `.\mvnw.cmd "-Dtest=TargetSkillServiceTest,ReviewServiceTest,AiServiceTest" "-Dskip.npm" "-Dfrontend.skip=true" test`（Tests run: 20, Failures: 0, Errors: 0）。
+- Passed: `.\mvnw.cmd test`（Tests run: 56, Failures: 0, Errors: 0, Skipped: 1）。
+- Note: 第一次全量 Maven test 在 Windows `target/classes/static/assets` 复制阶段遇到文件占用；清理该构建输出目录后重跑通过。
+
 ## 2026-06-28 — 前端视差滚动改版 + 产品介绍页 + Icon 重设计
 
 - 新增公开产品介绍页 `/landing`：视差滚动全屏区块布局（Hero 左右布局 + 功能矩阵 + 工作流左右交替 + AI/MCP 集成 + 数据统计 + CTA），未登录访问 `/` 自动跳转 Landing，登录后进 Dashboard。

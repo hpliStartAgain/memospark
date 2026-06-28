@@ -45,6 +45,14 @@ class AiServiceTest {
     }
 
     @Test
+    void evaluateFlashcardAnswer_aiUnavailable_returnsFallback() {
+        var result = aiService.evaluateFlashcardAnswer("Q", "A", "student answer");
+        assertEquals("C", result.grade());
+        assertEquals(3, result.quality());
+        assertEquals("A", result.suggestedAnswer());
+    }
+
+    @Test
     void generateHint_aiUnavailable_throws() {
         assertThrows(RuntimeException.class,
                 () -> aiService.generateHint("problem", null, 1));

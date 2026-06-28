@@ -3,6 +3,8 @@ package com.memospark.core.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memospark.core.dto.AnswerChatMessageDto;
+import com.memospark.core.dto.AnswerEvaluationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -158,11 +160,22 @@ public class AiService {
         String prompt = """
                 Generate exactly %d flashcards about the topic: "%s"
 
-                Each card should have a question (front) and a concise answer (back).
+                These cards are for serious technical interview preparation.
+                Each question must test one concrete concept, mechanism, diagnostic path, tradeoff, or production decision.
+                Answers must be self-contained and directly usable for study: explain the conclusion, why it works,
+                important boundaries or failure modes, and a concrete example when useful. Prefer 3-8 compact bullets
+                over a vague one-line answer.
                 Reply in %s.
 
                 Return ONLY a JSON array, no markdown, no explanation:
-                [{"front":"question here","back":"answer here","tags":"tag1,tag2"}]
+                [{
+                  "front":"question here",
+                  "back":"complete answer here",
+                  "tags":"tag1,tag2",
+                  "difficulty":"EASY|MEDIUM|HARD",
+                  "stage":"FOUNDATION|ADVANCED|PRACTICE",
+                  "order":"1"
+                }]
                 """.formatted(count, topic, lang);
 
         String response = chat(prompt);
@@ -232,6 +245,216 @@ public class AiService {
                 ? topic
                 : deckName + " - " + topic;
         return generateCards(composed, count, language);
+    }
+
+    public AnswerEvaluationDto evaluateFlashcardAnswer(String question, String referenceAnswer, String userAnswer) {
+        return evaluateFlashcardAnswer(question, referenceAnswer, userAnswer, false);
+    }
+
+    public AnswerEvaluationDto evaluateFlashcardAnswer(String question, String referenceAnswer,
+                                                        String userAnswer, boolean firstLearning) {
+        String modeInstruction = firstLearning
+                ? """
+                  This is the student's FIRST learning pass. Be forgiving about recall gaps.
+                  Reward a correct mental model even when terminology or details are incomplete.
+                  Feedback must teach: first affirm what is usable, then give one scaffolded correction,
+                  then provide a short memory hook. Do not shame or over-penalize a beginner.
+                  """
+                : """
+                  This is a spaced REVIEW after prior learning. Require accurate active recall,
+                  important boundaries, and an interview-ready explanation.
+                  """;
+        String prompt = """
+                You are a constructive interview-prep tutor grading an active-recall answer.
+
+                Question:
+                %s
+
+                Reference answer:
+                %s
+
+                Student answer:
+                %s
+
+                Learning mode:
+                %s
+
+                Evaluate whether the student truly understands the answer, not whether they matched wording.
+                Use the same language as the question.
+
+                Return ONLY JSON, no markdown:
+                {
+                  "grade":"A|B|C|D|E",
+                  "quality":5,
+                  "score":86,
+                  "feedback":"short actionable feedback",
+                  "missingPoints":["important omitted point"],
+                  "suggestedAnswer":"a polished answer the student could use in an interview",
+                  "recommendedReviewDays":3,
+                  "coachingTip":"one concrete way to remember or practice this"
+                }
+
+                Grade mapping:
+                A quality 5 score 90-100, B quality 4 score 75-89,
+                C quality 3 score 60-74, D quality 2 score 35-59,
+                E quality 0 score 0-34.
+
+                recommendedReviewDays must be an integer. For first learning use 1-14 days based on answer quality.
+                For later review use 1-90 days as a non-binding suggestion.
+                """.formatted(question, referenceAnswer, userAnswer, modeInstruction);
+
+        String response;
+        try {
+            response = chat(prompt);
+        } catch (RuntimeException e) {
+            log.warn("AI flashcard evaluation unavailable, returning fallback evaluation", e);
+            return new AnswerEvaluationDto(
+                    "C", 3, 60,
+                    "AI 评分暂时不可用。已给出保守默认评分，你可以直接翻面自评。",
+                    List.of(),
+                    referenceAnswer,
+                    firstLearning ? 2 : null,
+                    firstLearning ? "先复述核心因果，再补充边界条件。" : "",
+                    firstLearning ? "LEARNING" : "REVIEW");
+        }
+
+        try {
+            Map<String, Object> parsed = extractJsonObject(response, new TypeReference<>() {});
+            return toAnswerEvaluation(parsed, referenceAnswer, firstLearning);
+        } catch (Exception e) {
+            log.error("Failed to parse AI flashcard evaluation response: {}", response, e);
+            return new AnswerEvaluationDto(
+                    "C", 3, 60, response, List.of(), referenceAnswer,
+                    firstLearning ? 2 : null, "", firstLearning ? "LEARNING" : "REVIEW");
+        }
+    }
+
+    public String explainFlashcardAnswer(String question, String referenceAnswer, String userAnswer,
+                                         List<AnswerChatMessageDto> history, String message) {
+        return explainFlashcardAnswer(question, referenceAnswer, userAnswer, history, message, false);
+    }
+
+    public String explainFlashcardAnswer(String question, String referenceAnswer, String userAnswer,
+                                         List<AnswerChatMessageDto> history, String message,
+                                         boolean firstLearning) {
+        String prompt = """
+                You are an interview-prep tutor helping a student understand one flashcard.
+
+                Question:
+                %s
+
+                Reference answer:
+                %s
+
+                Student answer:
+                %s
+
+                Recent clarification chat:
+                %s
+
+                Student follow-up:
+                %s
+
+                Learning mode: %s.
+                Explain only what is needed to resolve the student's confusion.
+                Be concrete and use the same language as the student's follow-up when possible.
+                For FIRST_LEARNING, build the mental model step by step before giving interview phrasing.
+                For REVIEW, diagnose the exact misconception and keep the answer concise.
+                """.formatted(
+                question,
+                referenceAnswer,
+                userAnswer,
+                formatHistory(history),
+                message,
+                firstLearning ? "FIRST_LEARNING" : "REVIEW");
+        try {
+            return chat(prompt);
+        } catch (RuntimeException e) {
+            log.warn("AI flashcard explanation unavailable", e);
+            return "AI 解释暂时不可用。你可以先查看参考答案并手动评分，稍后再追问。";
+        }
+    }
+
+    public List<Map<String, Object>> governFlashcards(
+            String deckName, List<Map<String, Object>> cards, String language) {
+        String lang = "zh".equals(language) ? "Chinese" : "English";
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(cards);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Cannot serialize cards for governance", e);
+        }
+        String prompt = """
+                You are curating a staged technical interview study deck named "%s".
+                Classify every supplied card and design a prerequisite-aware learning order.
+
+                Rules:
+                - difficulty: EASY for direct concepts, MEDIUM for mechanisms/tradeoffs, HARD for diagnosis/design.
+                - stage: FOUNDATION for vocabulary and core objects, ADVANCED for internals and cross-concept reasoning,
+                  PRACTICE for troubleshooting, design, production cases, and interview synthesis.
+                - order: positive integer within the whole deck. Prerequisites must come earlier.
+                - Preserve cardId exactly. Do not rewrite questions or answers.
+                - Return one result for every card.
+
+                Reply in %s. Return ONLY JSON array:
+                [{"cardId":1,"difficulty":"MEDIUM","stage":"FOUNDATION","order":10,
+                  "tags":"normalized,comma,separated","rationale":"short reason"}]
+
+                Cards:
+                %s
+                """.formatted(deckName, lang, payload);
+        String response = chat(prompt);
+        try {
+            return extractJsonArray(response, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse card governance response: {}", response, e);
+            throw new RuntimeException("AI returned invalid card governance format");
+        }
+    }
+
+    public Map<String, Object> generateStudyPlan(String targetContext, int weeklyHours,
+                                                  String targetDate, String language) {
+        String lang = "zh".equals(language) ? "Chinese" : "English";
+        String prompt = """
+                You are an experienced technical interview coach. Build a realistic study strategy from the
+                candidate's target JD, current skill levels, and existing flashcard decks.
+
+                Target date: %s
+                Weekly study time: %d hours
+
+                Requirements:
+                - Produce a long-range roadmap from now to the target date.
+                - Produce exactly four rolling execution weeks.
+                - Use only deckIds present in the context.
+                - Move from FOUNDATION to ADVANCED to PRACTICE, but revisit weak foundations when needed.
+                - Keep workload sustainable: 5-6 study days per week, reviews before new material.
+                - New-card and review targets must fit the weekly hours.
+                - The plan should close JD gaps, not distribute time equally.
+
+                Reply in %s. Return ONLY JSON:
+                {
+                  "summary":"one paragraph",
+                  "strategy":"one concise paragraph",
+                  "phases":[
+                    {"name":"phase name","startWeek":1,"endWeek":8,"goal":"measurable outcome"}
+                  ],
+                  "weeks":[
+                    {"week":1,"objective":"measurable weekly outcome","stage":"FOUNDATION",
+                     "focusDeckIds":[1,2],"newCards":24,"reviews":60,"practiceSessions":1}
+                  ],
+                  "risks":["specific risk and mitigation"]
+                }
+
+                Context:
+                %s
+                """.formatted(targetDate, weeklyHours, lang, targetContext);
+        String response = chat(prompt);
+        try {
+            return extractJsonObject(response, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.error("Failed to parse study plan response: {}", response, e);
+            throw new RuntimeException("AI returned invalid study plan format");
+        }
     }
 
     /**
@@ -355,6 +578,32 @@ public class AiService {
         return withUser(userId, () -> gradeAnswer(question, referenceAnswer, userAnswer));
     }
 
+    public AnswerEvaluationDto evaluateFlashcardAnswer(String question, String referenceAnswer,
+                                                       String userAnswer, Long userId) {
+        return withUser(userId, () -> evaluateFlashcardAnswer(question, referenceAnswer, userAnswer));
+    }
+
+    public AnswerEvaluationDto evaluateFlashcardAnswer(String question, String referenceAnswer,
+                                                       String userAnswer, boolean firstLearning,
+                                                       Long userId) {
+        return withUser(userId, () -> evaluateFlashcardAnswer(
+                question, referenceAnswer, userAnswer, firstLearning));
+    }
+
+    public String explainFlashcardAnswer(String question, String referenceAnswer, String userAnswer,
+                                         List<AnswerChatMessageDto> history, String message,
+                                         Long userId) {
+        return withUser(userId, () -> explainFlashcardAnswer(
+                question, referenceAnswer, userAnswer, history, message));
+    }
+
+    public String explainFlashcardAnswer(String question, String referenceAnswer, String userAnswer,
+                                         List<AnswerChatMessageDto> history, String message,
+                                         boolean firstLearning, Long userId) {
+        return withUser(userId, () -> explainFlashcardAnswer(
+                question, referenceAnswer, userAnswer, history, message, firstLearning));
+    }
+
     public String generateHint(String problemDescription, String userCode, int level, Long userId) {
         return withUser(userId, () -> generateHint(problemDescription, userCode, level));
     }
@@ -374,6 +623,17 @@ public class AiService {
     public List<Map<String, String>> generateCardsForTopic(String deckName, String topic, int count,
                                                             String language, Long userId) {
         return withUser(userId, () -> generateCardsForTopic(deckName, topic, count, language));
+    }
+
+    public List<Map<String, Object>> governFlashcards(String deckName, List<Map<String, Object>> cards,
+                                                       String language, Long userId) {
+        return withUser(userId, () -> governFlashcards(deckName, cards, language));
+    }
+
+    public Map<String, Object> generateStudyPlan(String targetContext, int weeklyHours,
+                                                 String targetDate, String language, Long userId) {
+        return withUser(userId, () -> generateStudyPlan(
+                targetContext, weeklyHours, targetDate, language));
     }
 
     public List<Map<String, String>> generateInterviewQuestions(String targetContext, String type,
@@ -586,6 +846,92 @@ public class AiService {
         }
     }
 
+    private AnswerEvaluationDto toAnswerEvaluation(
+            Map<String, Object> parsed, String referenceAnswer, boolean firstLearning) {
+        String grade = valueAsString(parsed.getOrDefault("grade", "C")).toUpperCase();
+        int quality = clampInt(valueAsInt(parsed.get("quality"), qualityForGrade(grade)), 0, 5);
+        int score = clampInt(valueAsInt(parsed.get("score"), scoreForQuality(quality)), 0, 100);
+        String feedback = valueAsString(parsed.getOrDefault("feedback", "已完成评分。"));
+        List<String> missingPoints = valueAsStringList(parsed.get("missingPoints"));
+        String suggestedAnswer = valueAsString(parsed.getOrDefault("suggestedAnswer", referenceAnswer));
+        Integer recommendedDays = parsed.containsKey("recommendedReviewDays")
+                ? clampInt(valueAsInt(parsed.get("recommendedReviewDays"), firstLearning ? 2 : 7), 1, 90)
+                : (firstLearning ? 2 : null);
+        String coachingTip = valueAsString(parsed.getOrDefault("coachingTip", ""));
+        return new AnswerEvaluationDto(
+                grade, quality, score, feedback, missingPoints, suggestedAnswer,
+                recommendedDays, coachingTip, firstLearning ? "LEARNING" : "REVIEW");
+    }
+
+    private String formatHistory(List<AnswerChatMessageDto> history) {
+        if (history == null || history.isEmpty()) {
+            return "(none)";
+        }
+        StringBuilder sb = new StringBuilder();
+        history.stream()
+                .filter(m -> m != null && m.content() != null && !m.content().isBlank())
+                .skip(Math.max(0, history.size() - 8))
+                .forEach(m -> sb.append(m.role() != null ? m.role() : "user")
+                        .append(": ")
+                        .append(m.content(), 0, Math.min(m.content().length(), 1000))
+                        .append('\n'));
+        return sb.isEmpty() ? "(none)" : sb.toString();
+    }
+
+    private List<String> valueAsStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .filter(v -> v != null && !String.valueOf(v).isBlank())
+                .map(String::valueOf)
+                .toList();
+    }
+
+    private String valueAsString(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private int valueAsInt(Object value, int fallback) {
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        if (value instanceof String s) {
+            try {
+                return (int) Math.round(Double.parseDouble(s.trim()));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private int qualityForGrade(String grade) {
+        return switch (grade) {
+            case "A" -> 5;
+            case "B" -> 4;
+            case "C" -> 3;
+            case "D" -> 2;
+            case "E" -> 0;
+            default -> 3;
+        };
+    }
+
+    private int scoreForQuality(int quality) {
+        return switch (quality) {
+            case 5 -> 92;
+            case 4 -> 82;
+            case 3 -> 65;
+            case 2 -> 45;
+            case 0, 1 -> 20;
+            default -> 60;
+        };
+    }
+
+    private int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     private static class RetryableAiException extends RuntimeException {
         RetryableAiException(String message) {
             super(message);
@@ -604,7 +950,7 @@ public class AiService {
         return objectMapper.readValue(json, typeRef);
     }
 
-    private <T> List<Map<String, String>> extractJsonArray(String response, TypeReference<List<Map<String, String>>> typeRef) throws Exception {
+    private <T> T extractJsonArray(String response, TypeReference<T> typeRef) throws Exception {
         String cleaned = stripMarkdownFences(response);
         Matcher m = JSON_ARRAY_PATTERN.matcher(cleaned);
         String json = m.find() ? m.group() : cleaned;

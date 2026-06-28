@@ -24,7 +24,7 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401) {
-      window.location.href = '/login'
+      window.location.href = '/landing#access'
     }
     return Promise.reject(err)
   },
@@ -71,6 +71,8 @@ export const cardApi = {
     api.post(`/decks/${fromDeckId}/cards/batch-move`, { targetDeckId: toDeckId, cardIds }),
   fromText:    (deckId: number, body: object) =>
     api.post(`/decks/${deckId}/cards/from-text`, body).then(r => r.data),
+  govern:      (deckId: number, language: string) =>
+    api.post(`/decks/${deckId}/cards/govern`, { language }).then(r => r.data),
 }
 
 // ── Review ────────────────────────────────────────────────────────────────
@@ -80,8 +82,12 @@ export const reviewApi = {
     const params = tags?.length ? { params: { tags } } : {}
     return api.get(`/review/deck/${deckId}`, params as AxiosRequestConfig).then(r => r.data)
   },
-  submit:      (cardId: number, quality: number, timeSpentMs?: number) =>
-    api.post(`/review/${cardId}`, { quality, timeSpentMs }).then(r => r.data),
+  submit:      (cardId: number, quality: number, timeSpentMs?: number, evidence?: object) =>
+    api.post(`/review/${cardId}`, { quality, timeSpentMs, ...(evidence || {}) }).then(r => r.data),
+  evaluateAnswer: (cardId: number, userAnswer: string) =>
+    api.post(`/review/${cardId}/evaluate-answer`, { userAnswer }).then(r => r.data),
+  explainAnswer: (cardId: number, body: object) =>
+    api.post(`/review/${cardId}/explain-answer`, body).then(r => r.data),
   hard:        () => api.get('/review/hard').then(r => r.data),
   undo:        (cardId: number) => api.post(`/review/${cardId}/undo`).then(r => r.data),
 }
@@ -150,6 +156,22 @@ export const targetApi = {
   generateSkillCards: (id: number, skillId: number, lang: string) =>
     api.post(`/targets/${id}/skills/${skillId}/generate-cards`, null, { params: { lang } }).then(r => r.data),
   readiness:   (id: number) => api.get(`/targets/${id}/readiness`).then(r => r.data),
+}
+
+// ── Study plans ──────────────────────────────────────────────────────────
+export const planApi = {
+  get: (targetId: number) =>
+    api.get(`/plans/target/${targetId}`)
+      .then(r => r.data)
+      .catch(error => {
+        if (error.response?.status === 404) return null
+        throw error
+      }),
+  generate: (targetId: number, body: object) =>
+    api.post(`/plans/target/${targetId}/generate`, body).then(r => r.data),
+  today: () => api.get('/plans/today').then(r => r.data),
+  updateItem: (itemId: number, completed: boolean) =>
+    api.patch(`/plans/items/${itemId}`, { completed }).then(r => r.data),
 }
 
 // ── Mock Interviews ───────────────────────────────────────────────────────

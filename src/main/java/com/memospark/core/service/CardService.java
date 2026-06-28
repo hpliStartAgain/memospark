@@ -1,8 +1,11 @@
 package com.memospark.core.service;
 
 import com.memospark.core.domain.Card;
+import com.memospark.core.domain.CardDifficulty;
 import com.memospark.core.domain.CardProgress;
 import com.memospark.core.domain.Deck;
+import com.memospark.core.domain.LearningStage;
+import com.memospark.core.dto.CardGovernanceResultDto;
 import com.memospark.core.dto.CreateCardRequest;
 import com.memospark.core.dto.ReviewCardDto;
 import com.memospark.core.repository.CardProgressRepository;
@@ -11,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -45,6 +51,10 @@ public class CardService {
         Deck deck = deckService.getDeckOrThrow(deckId);
         deckService.verifyOwnership(deck, userId, isAdmin);
         Card card = new Card(deck, req.front(), req.back(), req.tags());
+        applyLearningMetadata(card, req);
+        if (req.stageOrder() == null) {
+            card.setStageOrder((int) Math.min(Integer.MAX_VALUE, cardRepository.countByDeckId(deckId) + 1));
+        }
         card = cardRepository.save(card);
 
         CardProgress progress = new CardProgress(card);
@@ -91,8 +101,58 @@ public class CardService {
         if (req.front() != null) card.setFront(req.front());
         if (req.back() != null) card.setBack(req.back());
         if (req.tags() != null) card.setTags(req.tags());
+        applyLearningMetadata(card, req);
         card = cardRepository.save(card);
         return toReviewCardDto(card, cardProgressRepository.findByCardId(card.getId()).orElse(null));
+    }
+
+    @Transactional
+    public CardGovernanceResultDto governCards(
+            Long deckId, String language, Long userId, boolean isAdmin) {
+        Deck deck = deckService.getDeckOrThrow(deckId);
+        deckService.verifyOwnership(deck, userId, isAdmin);
+        List<Card> cards = cardRepository.findByDeckId(deckId);
+        if (cards.isEmpty()) {
+            return new CardGovernanceResultDto(0, "牌组中还没有卡片。", List.of());
+        }
+
+        Map<Long, Map<String, Object>> suggestions = new HashMap<>();
+        for (int start = 0; start < cards.size(); start += 30) {
+            List<Card> batch = cards.subList(start, Math.min(start + 30, cards.size()));
+            List<Map<String, Object>> payload = batch.stream().map(card -> {
+                Map<String, Object> row = new HashMap<>();
+                row.put("cardId", card.getId());
+                row.put("front", truncate(card.getFront(), 700));
+                row.put("back", truncate(card.getBack(), 1200));
+                row.put("tags", card.getTags());
+                return row;
+            }).toList();
+            aiService.governFlashcards(deck.getName(), payload, language, userId)
+                    .forEach(row -> {
+                        Long cardId = asLong(row.get("cardId"));
+                        if (cardId != null) suggestions.put(cardId, row);
+                    });
+        }
+
+        int updated = 0;
+        LocalDateTime now = LocalDateTime.now();
+        for (Card card : cards) {
+            Map<String, Object> row = suggestions.get(card.getId());
+            if (row == null) continue;
+            card.setContentDifficulty(parseDifficulty(asString(row.get("difficulty")), card.getContentDifficulty()));
+            card.setLearningStage(parseStage(asString(row.get("stage")), card.getLearningStage()));
+            card.setStageOrder(Math.max(1, asInt(row.get("order"), card.getStageOrder())));
+            String normalizedTags = clean(asString(row.get("tags")));
+            if (normalizedTags != null) card.setTags(normalizedTags);
+            card.setGovernanceNote(truncate(clean(asString(row.get("rationale"))), 500));
+            card.setGovernedAt(now);
+            updated++;
+        }
+        cardRepository.saveAll(cards);
+
+        List<ReviewCardDto> governedCards = getCardsByDeck(deckId, userId, isAdmin);
+        String summary = "已按前置关系治理 " + updated + " 张卡片，并生成入门、进阶、实战顺序。";
+        return new CardGovernanceResultDto(updated, summary, governedCards);
     }
 
     @Transactional
@@ -148,6 +208,13 @@ public class CardService {
         }
         String tags = clean(row.get("tags"));
         Card card = cardRepository.save(new Card(deck, front, back, tags != null ? tags : "from-text"));
+        card.setContentDifficulty(parseDifficulty(row.get("difficulty"), CardDifficulty.MEDIUM));
+        card.setLearningStage(parseStage(row.get("stage"), LearningStage.FOUNDATION));
+        card.setStageOrder(Math.max(1, asInt(row.get("order"),
+                (int) Math.min(Integer.MAX_VALUE, cardRepository.countByDeckId(deck.getId()) + 1))));
+        card.setGovernanceNote("AI 生成时已完成初始分级");
+        card.setGovernedAt(LocalDateTime.now());
+        card = cardRepository.save(card);
         CardProgress progress = new CardProgress(card);
         srsService.initProgress(progress, userId);
         cardProgressRepository.save(progress);
@@ -173,11 +240,73 @@ public class CardService {
                 card.getFront(),
                 card.getBack(),
                 card.getTags(),
+                card.getContentDifficulty().name(),
+                card.getLearningStage().name(),
+                card.getStageOrder(),
+                card.getGovernanceNote(),
                 progress != null ? progress.getRepetitions() : 0,
                 progress != null ? progress.getEaseFactor() : 2.5,
                 progress != null ? progress.getInterval() : 0,
                 progress != null ? progress.getNextReviewDate() : null,
                 progress == null || progress.getLastReviewDate() == null
         );
+    }
+
+    private void applyLearningMetadata(Card card, CreateCardRequest req) {
+        if (req.contentDifficulty() != null) {
+            card.setContentDifficulty(parseDifficulty(req.contentDifficulty(), card.getContentDifficulty()));
+        }
+        if (req.learningStage() != null) {
+            card.setLearningStage(parseStage(req.learningStage(), card.getLearningStage()));
+        }
+        if (req.stageOrder() != null) {
+            card.setStageOrder(Math.max(1, req.stageOrder()));
+        }
+    }
+
+    private CardDifficulty parseDifficulty(String value, CardDifficulty fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return CardDifficulty.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
+    }
+
+    private LearningStage parseStage(String value, LearningStage fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return LearningStage.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
+    }
+
+    private Long asLong(Object value) {
+        if (value instanceof Number number) return number.longValue();
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private int asInt(Object value, int fallback) {
+        if (value instanceof Number number) return number.intValue();
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }

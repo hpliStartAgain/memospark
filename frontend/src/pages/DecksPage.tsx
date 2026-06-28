@@ -10,7 +10,7 @@ import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Badge from '@/components/ui/Badge'
 import type { Deck } from '@/types'
-import { Plus, BookOpen, Trash2, Play, Layers, Copy, Sparkles } from 'lucide-react'
+import { Plus, BookOpen, Trash2, Play, Layers, Copy, Sparkles, ListChecks, Pencil } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 
 interface DeckFormState { name: string; description: string; dailyNewCardLimit: string; dailyReviewLimit: string }
@@ -99,7 +99,7 @@ export default function DecksPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {decks.map(deck => (
-              <Card key={deck.id} hoverable className="group">
+              <Card key={deck.id} hoverable>
                 <CardBody className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
@@ -113,17 +113,23 @@ export default function DecksPage() {
                     <span className="flex items-center gap-1 text-orange-500"><BookOpen className="w-3.5 h-3.5" />{deck.dueCards} {t('deck.due')}</span>
                     {deck.newCards > 0 && <span className="text-primary-500">{deck.newCards} {t('deck.new')}</span>}
                   </div>
-                  <div className="flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button size="sm" onClick={() => navigate(`/review/${deck.id}`)} className="flex-1">
                       <Play className="w-3.5 h-3.5" />{t('deck.startReview')}
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setFromTextDeck(deck)}>
-                      <Sparkles className="w-3.5 h-3.5" />成卡
+                    <Button size="sm" variant="secondary" onClick={() => navigate(`/decks/${deck.id}`)}>
+                      <ListChecks className="w-3.5 h-3.5" />管理卡片
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => openEdit(deck)}>{t('common.edit')}</Button>
+                    <Button size="sm" variant="secondary" onClick={() => setFromTextDeck(deck)}>
+                      <Sparkles className="w-3.5 h-3.5" />一键成卡
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openEdit(deck)}>
+                      <Pencil className="w-3.5 h-3.5" />{t('common.edit')}
+                    </Button>
                     {(user?.role === 'ADMIN' || deck.type === 'CUSTOM') && (
-                      <Button size="sm" variant="danger" onClick={() => setDeleteTarget(deck)}>
+                      <Button title="删除牌组" size="sm" variant="ghost" onClick={() => setDeleteTarget(deck)} className="col-span-2">
                         <Trash2 className="w-3.5 h-3.5" />
+                        删除牌组
                       </Button>
                     )}
                   </div>

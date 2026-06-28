@@ -48,6 +48,13 @@ public class TargetSkill {
     @JoinColumn(name = "deck_id")
     private Deck deck;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deck_link_source", nullable = false, length = 30)
+    private DeckLinkSource deckLinkSource = DeckLinkSource.AI_CREATED;
+
+    @Column(name = "deck_match_score")
+    private Double deckMatchScore;
+
     /** AI-proposed sub-topics (one per line) used to generate cards on demand. */
     @Column(length = 2000)
     private String topics;

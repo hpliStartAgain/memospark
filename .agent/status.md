@@ -2,27 +2,23 @@
 
 Date: 2026-06-28
 
-Objective: full project test, repair, and delivery-readiness pass across backend, Web frontend, WeChat mini-program, MCP server, Docker/config, and documentation.
+Objective: implement JD deck-reuse matching and an answer-first AI review loop for flashcard study.
 
-Current state: code-level and package-level validation pass locally. Production CI/CD plumbing has been added, GitHub repository secrets are configured, and the app is running on `117.72.99.55:8080` via Docker Compose.
+Current state: implementation and verification pass locally. JD analysis now reuses high-confidence existing custom decks before creating new ones, and review sessions now support answer submission, AI evaluation, follow-up explanation, answer replacement, and SRS submission with answer evidence.
 
 Main repair areas:
 
-- Backend test isolation and Spring Security test setup.
-- AI grading fallback behavior.
-- MCP deck summary field mapping.
-- Taro mini-program webpack compatibility.
-- Dockerfile Java 21 alignment and frontend build inclusion.
-- Environment variable consistency across runtime config, Compose, examples, and docs.
-- Generated Web static assets refreshed by the frontend build.
-- GitHub Actions CI/CD deploy job for `main` / `master` push and manual dispatch.
-- Production Docker Compose file and deploy script under `/opt/memospark`.
-- Spring Boot 4 Flyway starter integration so DB migrations run before JPA validation.
-- BuildKit cache mounts in Dockerfile for Maven, npm, and frontend Node install.
+- Added Flyway V10 for `target_skills` deck-link metadata and `review_logs` answer evidence.
+- Added `DeckLinkSource` to protect matched existing decks from deletion when a target skill is removed.
+- Added deterministic deck matching in `TargetSkillService` using names, descriptions, tags, and sample card content.
+- Added structured review answer evaluation and follow-up explanation APIs under `/api/review/{cardId}`.
+- Extended review submission to persist user answers and AI feedback into review logs.
+- Reworked Web review UI into an answer-first flow with AI review, clarification chat, answer replacement, and manual fallback.
+- Updated target skill UI to show whether a skill reused an existing deck or created a new AI deck.
+- Refreshed Web static assets after frontend build.
 
 Notes:
 
-- Notion task sync was skipped because `ntn` is not installed on this machine.
-- Existing dirty frontend and mini-program files present before this pass were preserved and not reverted.
-- No commit or push was performed.
-- External deployment was performed to `117.72.99.55`; no secrets were written to the repository.
+- Notion task sync was skipped because `ntn whoami` previously timed out.
+- No speech-to-text integration was added; the UI only reserves a disabled voice-input affordance.
+- No commit, push, or deployment was performed.

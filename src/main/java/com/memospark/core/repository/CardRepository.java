@@ -8,8 +8,12 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface CardRepository extends JpaRepository<Card, Long> {
-    List<Card> findByDeckId(Long deckId);
+    List<Card> findByDeckIdOrderByLearningStageAscStageOrderAscIdAsc(Long deckId);
+    default List<Card> findByDeckId(Long deckId) {
+        return findByDeckIdOrderByLearningStageAscStageOrderAscIdAsc(deckId);
+    }
     long countByDeckId(Long deckId);
+    long countByDeckIdAndLearningStage(Long deckId, com.memospark.core.domain.LearningStage learningStage);
     void deleteByDeckId(Long deckId);
 
     @Query("SELECT COUNT(c) FROM Card c WHERE c.deck.user.id = :userId")

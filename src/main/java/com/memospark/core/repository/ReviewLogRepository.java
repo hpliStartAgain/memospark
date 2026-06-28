@@ -23,6 +23,18 @@ public interface ReviewLogRepository extends JpaRepository<ReviewLog, Long> {
     @Query("SELECT COUNT(rl) FROM ReviewLog rl JOIN rl.card c WHERE c.deck.id = :deckId AND rl.reviewDate = :date")
     long countByDeckIdAndReviewDate(@Param("deckId") Long deckId, @Param("date") LocalDate date);
 
+    @Query("SELECT COUNT(rl) FROM ReviewLog rl JOIN rl.card c WHERE c.deck.user.id = :userId AND rl.reviewDate = :date AND rl.learningMode = :learningMode")
+    long countByUserIdAndReviewDateAndLearningMode(
+            @Param("userId") Long userId,
+            @Param("date") LocalDate date,
+            @Param("learningMode") String learningMode);
+
+    @Query("SELECT COUNT(rl) FROM ReviewLog rl JOIN rl.card c WHERE c.deck.id = :deckId AND rl.reviewDate = :date AND rl.learningMode = :learningMode")
+    long countByDeckIdAndReviewDateAndLearningMode(
+            @Param("deckId") Long deckId,
+            @Param("date") LocalDate date,
+            @Param("learningMode") String learningMode);
+
     @Query("SELECT COALESCE(AVG(CASE WHEN rl.quality >= 3 THEN 1.0 ELSE 0.0 END), 0) FROM ReviewLog rl")
     double calculateOverallRetentionRate();
 

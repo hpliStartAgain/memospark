@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layers, BookOpen, Code2, NotebookPen, BarChart3, Settings, LogOut,
-  Sun, Moon, Globe, Zap, Menu, X, LayoutDashboard, Target,
+  Sun, Moon, Globe, Zap, Menu, X, LayoutDashboard, Target, CalendarRange,
 } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
@@ -22,13 +22,14 @@ export default function Layout() {
     onSuccess: () => {
       setUser(null)
       qc.clear()
-      navigate('/login')
+      navigate('/landing#access')
     },
   })
 
   const navItems = [
     { to: '/',         icon: LayoutDashboard, label: t('nav.dashboard'), end: true },
     { to: '/targets',  icon: Target,          label: t('nav.targets') },
+    { to: '/plans',    icon: CalendarRange,   label: t('nav.plans') },
     { to: '/decks',    icon: Layers,          label: t('nav.decks') },
     { to: '/review',   icon: BookOpen,        label: t('nav.review') },
     { to: '/practice', icon: Code2,           label: t('nav.practice') },
@@ -38,7 +39,7 @@ export default function Layout() {
   ]
 
   const mobileNavItems = navItems.filter(i =>
-    ['/', '/targets', '/review', '/practice', '/notebook'].includes(i.to))
+    ['/', '/plans', '/decks', '/review', '/practice'].includes(i.to))
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-gray-950">

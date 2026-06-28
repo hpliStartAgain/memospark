@@ -12,8 +12,10 @@ const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const TargetsPage = lazy(() => import('@/pages/TargetsPage'))
 const TargetDetailPage = lazy(() => import('@/pages/TargetDetailPage'))
+const PlansPage = lazy(() => import('@/pages/PlansPage'))
 const MockInterviewPage = lazy(() => import('@/pages/MockInterviewPage'))
 const DecksPage = lazy(() => import('@/pages/DecksPage'))
+const DeckDetailPage = lazy(() => import('@/pages/DeckDetailPage'))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage'))
 const PracticePage = lazy(() => import('@/pages/PracticePage'))
 const ProblemDetailPage = lazy(() => import('@/pages/ProblemDetailPage'))
@@ -66,7 +68,10 @@ export default function App() {
             <Route path="targets" element={<TargetsPage />} />
             <Route path="targets/:id" element={<TargetDetailPage />} />
             <Route path="targets/:id/mock" element={<MockInterviewPage />} />
+            <Route path="plans" element={<PlansPage />} />
+            <Route path="plans/:targetId" element={<PlansPage />} />
             <Route path="decks" element={<DecksPage />} />
+            <Route path="decks/:id" element={<DeckDetailPage />} />
             <Route path="review" element={<ReviewPage />} />
             <Route path="review/:deckId" element={<ReviewPage />} />
             <Route path="practice" element={<PracticePage />} />

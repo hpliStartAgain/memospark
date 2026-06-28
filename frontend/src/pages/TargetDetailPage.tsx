@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import type { TargetDetail, TargetSkill, JobJd } from '@/types'
 import {
   ArrowLeft, Plus, Trash2, Sparkles, Building2, CalendarClock,
-  FileText, Lightbulb, BookOpen, ChevronDown, ChevronUp,
+  FileText, Lightbulb, BookOpen, ChevronDown, ChevronUp, CalendarRange,
 } from 'lucide-react'
 
 function countdownText(days?: number) {
@@ -62,6 +62,18 @@ function SkillRow({ skill, targetId }: { skill: TargetSkill; targetId: number })
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-sm text-gray-900 dark:text-white">{skill.name}</span>
             <Badge variant="warning">重要度 {skill.weight}</Badge>
+            {skill.deckLinkSource === 'MATCHED_EXISTING' && (
+              <Badge variant="success">
+                复用牌组{skill.matchedDeckName ? `：${skill.matchedDeckName}` : ''}
+                {typeof skill.deckMatchScore === 'number' ? ` · ${Math.round(skill.deckMatchScore * 100)}%` : ''}
+              </Badge>
+            )}
+            {skill.deckLinkSource === 'AI_CREATED' && skill.deckId && (
+              <Badge variant="info">AI 新建牌组</Badge>
+            )}
+            {skill.deckLinkSource === 'MANUAL' && !skill.deckId && (
+              <Badge>手动技能</Badge>
+            )}
           </div>
           {skill.description && (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{skill.description}</p>
@@ -220,6 +232,9 @@ export default function TargetDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" onClick={() => navigate(`/plans/${targetId}`)}>
+            <CalendarRange className="w-4 h-4" />学习计划
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/targets/${targetId}/mock`)}>
             <Sparkles className="w-4 h-4" />模拟面试
           </Button>

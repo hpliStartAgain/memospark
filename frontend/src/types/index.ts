@@ -22,12 +22,16 @@ export interface Deck {
 }
 
 export interface Card {
-  id: number
+  cardId: number
   deckId: number
   deckName: string
   front: string
   back: string
   tags?: string
+  contentDifficulty: CardDifficulty
+  learningStage: LearningStage
+  stageOrder: number
+  governanceNote?: string
   repetitions: number
   easeFactor: number
   interval: number
@@ -42,12 +46,19 @@ export interface ReviewCard {
   front: string
   back: string
   tags?: string
+  contentDifficulty: CardDifficulty
+  learningStage: LearningStage
+  stageOrder: number
+  governanceNote?: string
   repetitions: number
   easeFactor: number
   interval: number
   nextReviewDate?: string
   isNew: boolean
 }
+
+export type CardDifficulty = 'EASY' | 'MEDIUM' | 'HARD'
+export type LearningStage = 'FOUNDATION' | 'ADVANCED' | 'PRACTICE'
 
 export interface Problem {
   id: number
@@ -82,6 +93,27 @@ export interface Submission {
 export interface ReviewRequest {
   quality: number
   timeSpentMs?: number
+  userAnswer?: string
+  aiGrade?: string
+  aiFeedback?: string
+  aiSuggestedAnswer?: string
+}
+
+export interface AnswerEvaluation {
+  grade: string
+  quality: number
+  score: number
+  feedback: string
+  missingPoints: string[]
+  suggestedAnswer: string
+  recommendedReviewDays?: number
+  coachingTip?: string
+  learningMode: 'LEARNING' | 'REVIEW'
+}
+
+export interface AnswerChatMessage {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 export interface ProblemNote {
@@ -192,6 +224,9 @@ export interface TargetSkill {
   selfLevel: number
   deckId?: number | null
   cardCount: number
+  deckLinkSource?: 'AI_CREATED' | 'MATCHED_EXISTING' | 'MANUAL'
+  matchedDeckName?: string
+  deckMatchScore?: number
 }
 
 export interface Readiness {
@@ -217,6 +252,60 @@ export interface TargetDetail {
   jds: JobJd[]
   skills: TargetSkill[]
   readiness: Readiness
+}
+
+export type StudyPlanItemType = 'LEARN' | 'REVIEW' | 'PRACTICE' | 'CHECKPOINT'
+
+export interface StudyPlanItem {
+  id: number
+  date: string
+  type: StudyPlanItemType
+  deckId?: number
+  deckName?: string
+  stage?: LearningStage
+  title: string
+  objective?: string
+  targetCount: number
+  completedCount: number
+  completed: boolean
+}
+
+export interface StudyPlanDay {
+  date: string
+  items: StudyPlanItem[]
+}
+
+export interface StudyPlanWeek {
+  weekNumber: number
+  startDate: string
+  endDate: string
+  objective: string
+  stage: LearningStage
+  days: StudyPlanDay[]
+}
+
+export interface StudyPlanPhase {
+  name: string
+  startWeek: number
+  endWeek: number
+  goal: string
+}
+
+export interface StudyPlan {
+  id: number
+  targetId: number
+  targetTitle: string
+  startDate: string
+  targetDate: string
+  weeklyHours: number
+  summary: string
+  strategy: string
+  roadmap: {
+    phases?: StudyPlanPhase[]
+    risks?: string[]
+  }
+  weeks: StudyPlanWeek[]
+  generatedAt: string
 }
 
 export type MockInterviewType = 'MIXED' | 'BEHAVIORAL' | 'TECHNICAL' | 'SYSTEM_DESIGN'
