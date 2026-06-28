@@ -7,20 +7,25 @@ export default {
     extend: {
       colors: {
         primary: {
-          50:  '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+          50:  '#fdf6f4',
+          100: '#faece7',
+          200: '#f4dad1',
+          300: '#ecc0b1',
+          400: '#e19d85',
+          500: '#da7756', // Claude Terracotta
+          600: '#c55f3f',
+          700: '#a54d32',
+          800: '#86412b',
+          900: '#6f3826',
         },
+        background: {
+          light: '#f9f8f6', // Claude Off-white
+          dark: '#1a1918',
+        }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['ui-serif', 'Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
     },

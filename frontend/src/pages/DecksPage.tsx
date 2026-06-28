@@ -97,7 +97,7 @@ export default function DecksPage() {
                   <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
                     <span className="flex items-center gap-1"><Layers className="w-3.5 h-3.5" />{deck.totalCards} {t('deck.cards')}</span>
                     <span className="flex items-center gap-1 text-orange-500"><BookOpen className="w-3.5 h-3.5" />{deck.dueCards} {t('deck.due')}</span>
-                    {deck.newCards > 0 && <span className="text-blue-500">{deck.newCards} {t('deck.new')}</span>}
+                    {deck.newCards > 0 && <span className="text-primary-500">{deck.newCards} {t('deck.new')}</span>}
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button size="sm" onClick={() => navigate(`/review/${deck.id}`)} className="flex-1">

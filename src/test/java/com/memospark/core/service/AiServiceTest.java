@@ -3,29 +3,20 @@ package com.memospark.core.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
 
-@ExtendWith(MockitoExtension.class)
 class AiServiceTest {
 
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @InjectMocks
     private AiService aiService;
 
     @BeforeEach
     void setUp() {
+        aiService = new AiService(new ObjectMapper());
         ReflectionTestUtils.setField(aiService, "apiKey", "test-key");
         ReflectionTestUtils.setField(aiService, "apiUrl", "http://localhost/v1/chat");
         ReflectionTestUtils.setField(aiService, "model", "test-model");

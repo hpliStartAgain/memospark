@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,7 +71,7 @@ class ReviewServiceTest {
     void submitReview_cardNotFound_throws() {
         when(cardService.getCardOrThrow(99L)).thenThrow(new NoSuchElementException("Not found"));
         assertThrows(NoSuchElementException.class,
-                () -> reviewService.submitReview(99L, new ReviewRequest(5), 1L));
+                () -> reviewService.submitReview(99L, new ReviewRequest(5, null), 1L));
     }
 
     @Test
@@ -78,7 +79,7 @@ class ReviewServiceTest {
         when(cardService.getCardOrThrow(10L)).thenReturn(card);
         when(cardProgressRepository.findByCardId(10L)).thenReturn(Optional.empty());
         assertThrows(NoSuchElementException.class,
-                () -> reviewService.submitReview(10L, new ReviewRequest(3), 1L));
+                () -> reviewService.submitReview(10L, new ReviewRequest(3, null), 1L));
     }
 
     @Test

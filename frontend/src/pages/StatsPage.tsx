@@ -45,7 +45,7 @@ export default function StatsPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard icon={Layers}      label={t('stats.totalDecks')}    value={stats?.totalDecks ?? 0}      color="bg-primary-500" />
-        <StatCard icon={BookOpen}    label={t('stats.totalCards')}    value={stats?.totalCards ?? 0}      color="bg-blue-500" />
+        <StatCard icon={BookOpen}    label={t('stats.totalCards')}    value={stats?.totalCards ?? 0}      color="bg-primary-500" />
         <StatCard icon={Calendar}    label={t('stats.dueToday')}      value={stats?.dueToday ?? 0}        color="bg-orange-500" />
         <StatCard icon={CheckCircle} label={t('stats.reviewedToday')} value={stats?.reviewedToday ?? 0}  color="bg-green-500" />
         <StatCard icon={TrendingUp}  label={t('stats.retention')}     value={`${stats?.retentionRate ?? 0}%`} color="bg-teal-500" />

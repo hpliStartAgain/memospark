@@ -53,7 +53,7 @@ export default function LoginPage() {
   const loading = loginMut.isPending || registerMut.isPending
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-blue-100 dark:from-gray-950 dark:to-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background-light dark:from-gray-950 dark:to-gray-900 p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">

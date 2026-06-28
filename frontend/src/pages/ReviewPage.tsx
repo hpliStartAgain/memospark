@@ -15,7 +15,7 @@ const QUALITY_BTNS = [
   { q: 1, label: '再来', color: 'bg-red-500 hover:bg-red-600 text-white' },
   { q: 2, label: '困难', color: 'bg-orange-500 hover:bg-orange-600 text-white' },
   { q: 3, label: '模糊', color: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
-  { q: 4, label: '不错', color: 'bg-blue-500 hover:bg-blue-600 text-white' },
+  { q: 4, label: '不错', color: 'bg-primary-500 hover:bg-primary-600 text-white' },
   { q: 5, label: '简单', color: 'bg-green-500 hover:bg-green-600 text-white' },
 ]
 
@@ -154,7 +154,7 @@ export default function ReviewPage() {
         <div className="space-y-4">
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">题目</p>
-            <p className="text-sm bg-gray-50 dark:bg-gray-800 rounded-lg p-3">{card.front}</p>
+            <p className="text-sm bg-background-light dark:bg-gray-800 rounded-lg p-3">{card.front}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('review.yourAnswer')}</label>
@@ -167,7 +167,7 @@ export default function ReviewPage() {
             />
           </div>
           {gradeResult && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+            <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
               {gradeResult}
             </div>
           )}

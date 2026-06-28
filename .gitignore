@@ -1,5 +1,7 @@
 HELP.md
 target/
+logs/
+.agent/*.log
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -65,6 +67,11 @@ frontend/node_modules/
 frontend/.vite/
 frontend/dist/
 frontend/.env
+
+### Mini Program ###
+miniprogram/node_modules/
+miniprogram/dist/
+miniprogram/.env
 
 ### MCP Server ###
 mcp-server/node_modules/

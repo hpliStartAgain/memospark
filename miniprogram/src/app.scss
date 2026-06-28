@@ -1,6 +1,8 @@
 page {
-  background-color: #f8fafc;
-  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  background-color: #f9f8f6;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, "PingFang SC", serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   color: #1e293b;
   box-sizing: border-box;
 }
@@ -20,7 +22,7 @@ page {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.text-primary  { color: #0ea5e9; }
+.text-primary  { color: #da7756; }
 .text-muted    { color: #94a3b8; }
 .text-danger   { color: #ef4444; }
 .text-success  { color: #22c55e; }
@@ -43,7 +45,7 @@ page {
 .gap-12 { gap: 24px; }
 
 .btn-primary {
-  background: #0ea5e9;
+  background: #da7756;
   color: #ffffff;
   border-radius: 12px;
   padding: 24px 0;
@@ -56,8 +58,8 @@ page {
 
 .btn-outline {
   background: transparent;
-  color: #0ea5e9;
-  border: 2px solid #0ea5e9;
+  color: #da7756;
+  border: 2px solid #da7756;
   border-radius: 12px;
   padding: 24px 0;
   text-align: center;

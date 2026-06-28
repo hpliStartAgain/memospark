@@ -116,7 +116,7 @@ export default function LoginPage() {
             </Button>
 
             <Button
-              style={{ marginTop: '20px', background: 'transparent', color: '#0ea5e9' }}
+              style={{ marginTop: '20px', background: 'transparent', color: '#da7756' }}
               onClick={() => setTab('wx')}
             >
               ← 返回微信登录

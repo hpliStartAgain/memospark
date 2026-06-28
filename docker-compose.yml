@@ -31,13 +31,13 @@ services:
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-memospark}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-memospark_pass}
       AI_API_KEY: ${AI_API_KEY:-}
-      AI_API_URL: ${AI_API_URL:-}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
-      JUDGE0_API_URL: ${JUDGE0_API_URL:-}
-      JUDGE0_API_KEY: ${JUDGE0_API_KEY:-}
-      JUDGE0_API_HOST: ${JUDGE0_API_HOST:-}
+      AI_API_URL: ${AI_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      AI_API_MODEL: ${AI_API_MODEL:-deepseek-chat}
+      JUDGE0_URL: ${JUDGE0_URL:-https://ce.judge0.com}
+      JUDGE0_KEY: ${JUDGE0_KEY:-}
+      JUDGE0_HOST: ${JUDGE0_HOST:-}
       JUDGE_TYPE: ${JUDGE_TYPE:-judge0}
-      QUICK_ADD_API_KEY: ${QUICK_ADD_API_KEY:-}
+      MEMOSPARK_API_KEY: ${MEMOSPARK_API_KEY:-}
     restart: unless-stopped
 
 volumes:

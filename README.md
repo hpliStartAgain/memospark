@@ -24,14 +24,14 @@
 - JDK 21+
 - Maven Wrapper（已自带 `mvnw` / `mvnw.cmd`）
 - MySQL 8（本地不存在数据库时会自动创建）
-- Node.js 18+（仅使用 MCP Server 时需要）
+- Node.js 18+（独立构建 Web 前端、小程序或 MCP Server 时需要；Maven 打包 Web 端会自动安装 Node 20.11.0）
 - 可选：`make`（Windows 可用 GnuWin / WSL / Git Bash）
 
 最小启动：
 
 ```bash
 # 必填环境变量
-export DB_PASSWORD=root
+export DB_PASSWORD=your_local_mysql_password
 export AI_API_KEY=your_llm_key
 
 # 可选（有默认值）
@@ -50,6 +50,8 @@ make run
 | 本地开发热启动 | `make run` |
 | 打包可执行 jar | `make package` |
 | 运行打包后的 jar | `make run-jar` |
+| Docker Compose 启动 MySQL + 应用 | `docker compose up --build` |
+| 生产部署（仅应用容器，连接宿主机 MySQL） | `docker compose -f docker-compose.prod.yml up -d --build` |
 | 单元测试 | `make test` |
 | 清理构建产物 | `make clean` |
 
@@ -61,6 +63,26 @@ make run
 java -jar target/memospark-0.0.1-SNAPSHOT.jar
 ./mvnw test
 ```
+
+## GitHub Actions 部署
+
+仓库的 CI/CD workflow 会在 `main` / `master` push 后执行测试、Docker 构建验证，并通过 SSH 在生产主机运行 `scripts/deploy.sh`。部署脚本默认使用：
+
+- 应用目录：`/opt/memospark`
+- 生产 Compose：`docker-compose.prod.yml`
+- 代码来源：当前 GitHub 仓库与触发分支
+- 数据库：宿主机 MySQL，JDBC 示例见 `.env.production.example`
+
+GitHub Actions 需要配置以下 repository secrets：
+
+| Secret | 说明 |
+| ------ | ---- |
+| `DEPLOY_HOST` | SSH 主机地址 |
+| `DEPLOY_PORT` | SSH 端口，通常为 `22` |
+| `DEPLOY_USER` | SSH 用户 |
+| `DEPLOY_SSH_KEY` | 已加入服务器 `authorized_keys` 的私钥 |
+
+生产环境变量不进入 GitHub Secrets；在服务器 `/opt/memospark/.env` 中维护，初始内容可参考 `.env.production.example`。
 
 ## 配置项
 

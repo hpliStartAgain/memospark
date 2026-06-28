@@ -72,7 +72,14 @@ public class AiService {
                 Mapping: A→quality 5, B→quality 4, C→quality 3, D→quality 2, E→quality 0
                 """.formatted(question, referenceAnswer, userAnswer);
 
-        String response = chat(prompt);
+        String response;
+        try {
+            response = chat(prompt);
+        } catch (RuntimeException e) {
+            log.warn("AI grade unavailable, returning fallback grade", e);
+            return Map.of("grade", "C", "quality", 3,
+                    "feedback", "AI grading is temporarily unavailable.");
+        }
         try {
             return extractJsonObject(response, new TypeReference<>() {});
         } catch (Exception e) {

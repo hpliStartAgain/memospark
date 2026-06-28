@@ -29,5 +29,16 @@
     "@types/react-dom": "^18.2.0",
     "babel-preset-taro": "3.6.28",
     "typescript": "^5.4.0"
+  },
+  "overrides": {
+    "@tarojs/webpack5-runner": {
+      "webpack": "5.78.0"
+    },
+    "@tarojs/webpack5-prebundle": {
+      "webpack": "5.78.0"
+    },
+    "webpackbar": {
+      "webpack": "5.78.0"
+    }
   }
 }

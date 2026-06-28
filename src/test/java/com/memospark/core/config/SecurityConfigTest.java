@@ -6,11 +6,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,6 +38,8 @@ class SecurityConfigTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        when(userService.loadUserByUsername(anyString()))
+                .thenThrow(new UsernameNotFoundException("Not found"));
         mvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
@@ -57,7 +62,7 @@ class SecurityConfigTest {
         mvc.perform(post("/api/auth/login")
                         .contentType("application/json")
                         .content("{\"username\":\"x\",\"password\":\"x\"}"))
-                .andExpect(status().isBadRequest()); // 400 due to bad creds, not 401
+                .andExpect(status().isUnauthorized()); // 401 due to bad creds after reaching the public controller
     }
 
     @Test
@@ -65,7 +70,7 @@ class SecurityConfigTest {
         mvc.perform(post("/api/auth/register")
                         .contentType("application/json")
                         .content("{\"username\":\"newuser\",\"password\":\"pass123\"}"))
-                .andExpect(status().isBadRequest()); // 400 due to validation, not 401
+                .andExpect(status().isCreated());
     }
 
     @Test

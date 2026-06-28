@@ -1,8 +1,10 @@
 package com.memospark.core.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memospark.core.config.JwtService;
 import com.memospark.core.repository.UserRepository;
 import com.memospark.core.service.AiService;
+import com.memospark.core.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -51,6 +53,12 @@ class AiControllerJdTest {
 
     @MockitoBean
     UserRepository userRepository;
+
+    @MockitoBean
+    JwtService jwtService;
+
+    @MockitoBean
+    UserService userService;
 
     @Test
     void analyzeJds_happyPath_returnsDecksFromService() throws Exception {

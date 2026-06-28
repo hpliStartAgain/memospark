@@ -119,7 +119,7 @@ export default function NotebookPage() {
                 </div>
 
                 {note.note && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 bg-background-light dark:bg-gray-800 rounded-lg p-2">
                     {note.note}
                   </p>
                 )}

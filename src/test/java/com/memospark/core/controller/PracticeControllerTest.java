@@ -1,23 +1,30 @@
 package com.memospark.core.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memospark.core.config.JwtService;
+import com.memospark.core.domain.User;
+import com.memospark.core.domain.UserRole;
 import com.memospark.core.dto.CodeProblemDetailDto;
 import com.memospark.core.dto.CodeSubmissionDto;
+import com.memospark.core.repository.UserRepository;
 import com.memospark.core.service.JudgeOrchestrator;
 import com.memospark.core.service.ProblemNoteService;
 import com.memospark.core.service.ProblemService;
+import com.memospark.core.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -35,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = com.memospark.core.config.SecurityConfig.class))
 @AutoConfigureMockMvc(addFilters = false)
+@WithMockUser(username = "u")
 class PracticeControllerTest {
 
     @Autowired
@@ -54,6 +62,22 @@ class PracticeControllerTest {
 
     @MockitoBean
     com.memospark.core.service.AiService aiService;
+
+    @MockitoBean
+    UserRepository userRepository;
+
+    @MockitoBean
+    JwtService jwtService;
+
+    @MockitoBean
+    UserService userService;
+
+    @BeforeEach
+    void setUpUser() {
+        User user = new User("u", "p", UserRole.USER);
+        user.setId(1L);
+        when(userRepository.findByUsername("u")).thenReturn(Optional.of(user));
+    }
 
     @Test
     void getProblem_returnsDetailDtoWithoutTestCases() throws Exception {

@@ -181,7 +181,7 @@ export default function ProblemDetailPage() {
           <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             {(['java', 'python'] as Lang[]).map(l => (
               <button key={l} onClick={() => setLang(l)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${lang === l ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${lang === l ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-background-light dark:hover:bg-gray-800'}`}>
                 {l === 'java' ? 'Java' : 'Python'}
               </button>
             ))}

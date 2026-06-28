@@ -180,7 +180,7 @@ export default function TargetDetailPage() {
                     −
                   </Text>
                   <Text
-                    style={{ fontSize: '32px', color: '#0ea5e9', padding: '4px 12px' }}
+                    style={{ fontSize: '32px', color: '#da7756', padding: '4px 12px' }}
                     onClick={() => updateSkillLevel(skill.id, 1)}
                   >
                     +

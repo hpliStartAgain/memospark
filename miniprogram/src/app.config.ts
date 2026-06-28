@@ -9,10 +9,10 @@ export default defineAppConfig({
   ],
   window: {
     backgroundTextStyle: 'dark',
-    navigationBarBackgroundColor: '#0ea5e9',
+    navigationBarBackgroundColor: '#da7756',
     navigationBarTitleText: 'MemoSpark',
     navigationBarTextStyle: 'white',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f9f8f6',
   },
   // NOTE: tabBar icons are intentionally text-only. WeChat requires every
   // declared iconPath to point to an existing raster (PNG/JPG) file, and we
@@ -20,7 +20,7 @@ export default defineAppConfig({
   // assets/icons/*.png and re-add iconPath/selectedIconPath when available.
   tabBar: {
     color: '#94a3b8',
-    selectedColor: '#0ea5e9',
+    selectedColor: '#da7756',
     backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [

@@ -360,12 +360,13 @@ server.tool(
 // ── Shared formatters ──────────────────────────────────────────────────────
 
 function formatDeckSummary(d: Record<string, unknown>): string {
+  const dueCards = d["dueCards"] ?? d["due"] ?? 0;
   return (
     `  ID          : ${d["id"]}\n` +
     `  Name        : ${d["name"]}\n` +
     (d["description"] ? `  Description : ${d["description"]}\n` : "") +
     `  Total cards : ${d["totalCards"]}\n` +
-    `  Due today   : ${d["due"]} (${d["newCards"]} new + ${d["reviewCards"]} review)\n` +
+    `  Due today   : ${dueCards} (${d["newCards"]} new + ${d["reviewCards"]} review)\n` +
     (d["dailyNewCardLimit"] != null ? `  New limit   : ${d["dailyNewCardLimit"]}/day\n` : "") +
     (d["dailyReviewLimit"] != null ? `  Review limit: ${d["dailyReviewLimit"]}/day\n` : "")
   );
