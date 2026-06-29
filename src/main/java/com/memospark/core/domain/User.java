@@ -28,6 +28,9 @@ public class User {
     @Column(nullable = false, length = 10)
     private UserRole role = UserRole.USER;
 
+    @Column(nullable = false)
+    private boolean enabled = true;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

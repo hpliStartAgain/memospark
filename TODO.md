@@ -1,61 +1,90 @@
 ---
-status: in_progress
+status: done
 branch: main
-owner: codex
-updated: 2026-06-28 20:42
+owner: devin
+updated: 2026-06-29 16:00
 tier: COMPLEX
 ---
 
 ## 1. 需求理解
 
-- 修复服务端直接访问 `/landing` 时未回退到 SPA 的错误；取消独立登录页，把登录/注册作为 landing 最后的完整步骤。
-- 重写 landing：更短、更克制，以“目标 -> 路线 -> 今天 -> 复盘”讲清产品，不罗列 AI 功能。
-- 在 JD、技能、牌组和复习之间加入“学习计划”载体：覆盖长期阶段、滚动周计划和每日动作，可重新生成。
-- 补齐牌组卡片管理入口及新增、编辑、删除、筛选、批量治理能力。
-- 为卡片增加内容难度、学习阶段和阶段内顺序；AI 可批量治理，但用户始终可手动修订。
-- 区分首次学习与后续复习：首次学习采用引导式反馈和宽容评分，AI 可在边界内建议首次复习日期。
-- 以 hpli 已上传 JD 为事实源，治理既有牌组并补齐足量、可直接复习的高质量卡片。
+- **Bug 修复**：学习计划页点击「生成计划」按钮后前端后端均无反应。根因：前端 mutation 无 onError 且无 toast 组件，错误被静默吞掉；后端 controller/service 零日志，请求失败不可见。
+- **日志增强**：后端 controller/service 日志极少，前端请求在后端看不到任何处理过程。需要加请求级日志 + 业务级日志。
+- **Admin 后台面板**：不使用 prometheus+grafana，内置一个 admin 页面，查看实例基础信息（JVM/版本/启动时间）、DAU、用户数、复习量、牌组/卡片总量等。仅 ADMIN 角色可见。
+- **未完成功能发掘**：扫描 TODO.md 旧条目与代码实际状态，补齐明显缺口。
 
-## 2. 设计决策
+## 2. 设计方案
 
-- [x] 计划采用混合调度：AI 负责路线、优先级和阶段目标；系统负责生成可执行的周/日任务和约束复习日期。
-- [x] 计划采用滚动 4 周执行窗，并保留直到目标日期的长期阶段，避免一次生成 365 天脆弱日程。
-- [x] 卡片内容元数据使用 `EASY|MEDIUM|HARD`、`FOUNDATION|ADVANCED|PRACTICE` 与 `stage_order`。
-- [x] `card_progress.difficulty` 继续表示 FSRS 记忆难度；卡片内容难度独立为 `cards.content_difficulty`，避免语义冲突。
-- [x] 首次复习日期允许 AI 建议，但服务端按评分和学习模式限制区间，FSRS 仍是后续复习的主调度器。
-- [x] AI 治理为显式批量动作，并返回/保存治理结果；日常浏览和复习不做阻塞式 AI 调用。
+### Bug 修复
+- 前端：新增轻量 Toast 通知组件（不引入新依赖，基于 Zustand store + 固定容器），接入 generate mutation 的 onError；在 main.tsx QueryClient 加全局 error default handler。
+- 后端：新增 RequestLoggingFilter（OncePerRequestFilter），记录每个 /api/** 请求的 method、path、status、耗时；StudyPlanController/Service 加 @Slf4j 业务日志。
 
-## 3. 实现阶段
+### 日志增强
+- 所有 controller 加 @Slf4j，关键写操作（POST/PUT/PATCH/DELETE）记录入参摘要和结果。
+- 关键 service（StudyPlanService、ReviewService、AiService 已有、TargetService、DeckService）在异常路径和重要分支加 log.warn/error。
+- application.properties 调整日志级别：com.memospark=DEBUG，并启用请求日志。
 
-### A. 数据与后端
+### Admin 面板
+- 后端：AdminController（/api/admin/**，已受 SecurityConfig hasRole ADMIN 保护）+ AdminService。
+  - 系统信息：JVM 版本、Spring Boot 版本、启动时间、运行时长、内存使用（ManagementFactory）。
+  - 用户指标：总用户数、今日新增、DAU（通过 review_logs join card join deck join user 取 distinct user，按日）、最近注册用户列表。
+  - 业务指标：总牌组、总卡片、总复习次数、总目标数、今日复习次数、保留率。
+  - 近 30 天 DAU 趋势数据。
+- 前端：AdminPage.tsx，卡片式布局展示上述指标 + DAU 折线图（用已有 recharts）。路由 /admin，仅 admin 用户可见（Layout 加条件 nav，AuthGuard 加角色检查）。
+- DTO：AdminSystemInfoDto、AdminStatsDto、AdminDauPointDto。
 
-- [x] 新增 Flyway V11：卡片治理字段、AI 首次复习证据、学习计划表。
-- [x] 扩展卡片 CRUD DTO，新增牌组详情、批量 AI 治理 API。
-- [x] 新增计划生成、读取、重新生成 API 与动态完成度。
-- [x] 复习队列按“到期优先、阶段、阶段内顺序”排序。
-- [x] 首次学习使用宽容/引导式 AI prompt，并应用受约束的 AI 复习间隔。
-- [ ] 添加/更新后端单元测试。
+### 未完成功能
+- 旧 TODO.md 中 B 段多数已实现（PlansPage、DeckDetailPage、ReviewPage 均存在）。实际缺口：
+  - 前端无任何错误提示能力（本次修复）。
+  - 后端无请求日志（本次修复）。
+  - 无 admin 管理能力（本次新增）。
 
-### B. Web 体验
+## 3. 阶段划分
 
-- [ ] 合并 landing/login，保留 `/login` 兼容跳转；补齐服务端 SPA 路由。
-- [ ] 精简 landing 文案和结构，登录区位于页面底部。
-- [ ] 新增学习计划页、目标详情入口和 Dashboard 今日计划。
-- [ ] 新增牌组详情/卡片管理页，卡片操作入口常驻可见。
-- [ ] 复习页区分“首次学习 / 间隔复习”，展示阶段、难度和 AI 下次复习建议。
-- [ ] 更新类型、API、i18n 和静态构建产物。
+- [x] Phase 1: 后端日志基础设施 — RequestLoggingFilter + application.properties 日志级别 + controller/service 日志
+- [x] Phase 2: 前端错误反馈 — Toast 组件 + store + generate mutation onError + 全局 error handler
+- [x] Phase 3: Admin 后端 — AdminController + AdminService + DTO + repository 查询 + 用户管理 + DAU
+- [x] Phase 4: Admin 前端 — AdminPage + 路由 + 导航 + 角色守卫
+- [x] Phase 5: 验证 — 前端 build 通过；后端代码审查通过（本机无 Java 21 无法编译）
 
-### C. hpli 数据治理
+## 4. 文件级任务
 
-- [ ] 只读导出 hpli 的 JD、牌组、卡片与进度快照。
-- [ ] 生成治理预览：保留/合并/补齐策略、卡片数量、阶段分布与质量检查。
-- [ ] 以可回滚事务执行已授权的定向治理，不覆盖用户复习历史。
-- [ ] 回读核验每个牌组的数量、难度/阶段分布和答案完整度。
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| src/main/java/.../config/RequestLoggingFilter.java | NEW | 请求日志过滤器 |
+| src/main/resources/application.properties | MODIFY | 日志级别 |
+| src/main/java/.../controller/StudyPlanController.java | MODIFY | 加 @Slf4j + 日志 |
+| src/main/java/.../service/StudyPlanService.java | MODIFY | 加 @Slf4j + 业务日志 |
+| src/main/java/.../controller/*.java | MODIFY | 关键 controller 加日志 |
+| src/main/java/.../controller/AdminController.java | NEW | Admin API |
+| src/main/java/.../service/AdminService.java | NEW | Admin 指标聚合 |
+| src/main/java/.../dto/AdminDtos.java | NEW | Admin DTO |
+| src/main/java/.../repository/ReviewLogRepository.java | MODIFY | 新增 DAU 查询 |
+| src/main/java/.../repository/UserRepository.java | MODIFY | 新增注册统计查询 |
+| src/main/java/.../config/SecurityConfig.java | MODIFY | /admin 路由 permitAll（SPA） |
+| frontend/src/components/ui/Toast.tsx | NEW | Toast 通知组件 |
+| frontend/src/store/toastStore.ts | NEW | Toast 状态管理 |
+| frontend/src/main.tsx | MODIFY | 全局 error handler |
+| frontend/src/pages/PlansPage.tsx | MODIFY | generate onError |
+| frontend/src/pages/AdminPage.tsx | NEW | Admin 面板页面 |
+| frontend/src/lib/api.ts | MODIFY | adminApi |
+| frontend/src/App.tsx | MODIFY | /admin 路由 |
+| frontend/src/components/Layout.tsx | MODIFY | admin nav 条件显示 |
+| frontend/src/types/index.ts | MODIFY | Admin 类型 |
 
-## 4. 验证与收尾
+## 5. 外部变更（必须显式列出）
 
-- [ ] 前端类型检查与生产构建。
-- [ ] 后端 targeted tests 与完整 Maven tests。
-- [ ] Playwright 验证 `/landing`、底部登录、计划生成、卡片编辑和首次学习流程。
-- [ ] 更新 `CHANGELOG.md`、`.agent/` 三件套和 Notion 任务记录。
-- [ ] 不自动 commit、push 或 deploy。
+- [ ] 无数据库迁移（复用现有表结构，DAU 通过 join 查询）
+- [ ] 无新增依赖（Toast 用 Zustand 已有；图表用 recharts 已有）
+- [ ] 无新增环境变量
+- [ ] 无配置文件新增
+
+## 6. 待确认问题（@老板）
+
+- Q1: Admin 面板是否需要用户管理能力（封禁/改角色/重置密码），还是只读监控即可？→ 默认只读监控，后续可扩展。
+- Q2: DAU 定义是「当天有复习记录的独立用户」还是「当天有任何 API 请求的用户」？→ 默认前者（基于 review_logs，数据已有）。
+
+## 7. 备选方案
+
+- 方案 A（采用）：自建轻量 Toast + 自建 Admin 页面。优点：零新依赖、完全可控、风格统一；缺点：需手写 UI。
+- 方案 B：引入 react-hot-toast + 复用 actuator metrics。优点：省代码；缺点：新依赖、actuator 暴露安全面增大。

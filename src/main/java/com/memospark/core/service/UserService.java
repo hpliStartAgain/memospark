@@ -9,6 +9,7 @@ import com.memospark.core.repository.CardRepository;
 import com.memospark.core.repository.DeckRepository;
 import com.memospark.core.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
@@ -39,6 +41,7 @@ public class UserService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
+                user.isEnabled(), true, true, user.isEnabled(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }
@@ -123,6 +126,40 @@ public class UserService implements UserDetailsService {
     @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
+    }
+
+    // ── Admin operations ──────────────────────────────────────────────────────
+
+    @Transactional
+    public UserDto setEnabled(Long userId, boolean enabled) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        if (user.getRole() == UserRole.ADMIN && !enabled) {
+            throw new IllegalArgumentException("不能封禁管理员账户");
+        }
+        user.setEnabled(enabled);
+        log.info("Admin: user {} enabled={}", userId, enabled);
+        return toDto(user);
+    }
+
+    @Transactional
+    public UserDto setRole(Long userId, UserRole role) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        user.setRole(role);
+        log.info("Admin: user {} role={}", userId, role);
+        return toDto(user);
+    }
+
+    @Transactional
+    public void adminResetPassword(Long userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+        if (newPassword == null || newPassword.length() < 3) {
+            throw new IllegalArgumentException("Password must be at least 3 characters");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        log.info("Admin: password reset for user {}", userId);
     }
 
     private UserDto toDto(User user) {

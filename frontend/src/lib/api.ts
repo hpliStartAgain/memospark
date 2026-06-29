@@ -217,3 +217,17 @@ export function openSubmissionStream(
   })
   return es
 }
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+export const adminApi = {
+  system:  () => api.get('/admin/system').then(r => r.data),
+  stats:   () => api.get('/admin/stats').then(r => r.data),
+  dau:     (days = 30) => api.get('/admin/dau', { params: { days } }).then(r => r.data),
+  users:   () => api.get('/admin/users').then(r => r.data),
+  setEnabled: (userId: number, enabled: boolean) =>
+    api.patch(`/admin/users/${userId}/enabled`, { enabled }).then(r => r.data),
+  setRole: (userId: number, role: string) =>
+    api.patch(`/admin/users/${userId}/role`, { role }).then(r => r.data),
+  resetPassword: (userId: number, newPassword: string) =>
+    api.post(`/admin/users/${userId}/reset-password`, { newPassword }).then(r => r.data),
+}

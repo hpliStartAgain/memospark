@@ -2,6 +2,8 @@ export interface User {
   id: number
   username: string
   role: 'USER' | 'ADMIN'
+  enabled?: boolean
+  createdAt?: string
 }
 
 export interface Deck {
@@ -335,4 +337,58 @@ export interface MockInterview {
   startedAt: string
   finishedAt?: string
   questions: MockInterviewQuestion[]
+}
+
+// ── Admin ──────────────────────────────────────────────────────────────────
+export interface AdminSystemInfo {
+  appName: string
+  appVersion: string
+  javaVersion: string
+  javaVendor: string
+  osName: string
+  osArch: string
+  springBootVersion: string
+  startupTime: string
+  uptimeSeconds: number
+  heapUsedMb: number
+  heapMaxMb: number
+  availableProcessors: number
+  threadCount: number
+}
+
+export interface AdminStats {
+  totalUsers: number
+  enabledUsers: number
+  todayNewUsers: number
+  todayActiveUsers: number
+  totalDecks: number
+  totalCards: number
+  totalReviews: number
+  totalTargets: number
+  todayReviews: number
+  overallRetentionRate: number
+  adminCount: number
+}
+
+export interface AdminDauPoint {
+  date: string
+  activeUsers: number
+  totalRequests: number
+}
+
+export interface AdminUser {
+  id: number
+  username: string
+  role: 'USER' | 'ADMIN'
+  enabled: boolean
+  createdAt: string
+  lastActiveAt?: string
+  deckCount: number
+  cardCount: number
+  reviewCount: number
+}
+
+export interface AdminUserList {
+  users: AdminUser[]
+  total: number
 }

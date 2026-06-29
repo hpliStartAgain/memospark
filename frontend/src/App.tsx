@@ -22,6 +22,7 @@ const ProblemDetailPage = lazy(() => import('@/pages/ProblemDetailPage'))
 const NotebookPage = lazy(() => import('@/pages/NotebookPage'))
 const StatsPage = lazy(() => import('@/pages/StatsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
+const AdminPage = lazy(() => import('@/pages/AdminPage'))
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAppStore()
@@ -79,6 +80,8 @@ export default function App() {
             <Route path="notebook" element={<NotebookPage />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="admin" element={<AdminPage />} />
+            <Route path="admin/*" element={<AdminPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,0 +1,1 @@
+import{M as e,T as a}from"./vendor-DrF6szKx.js";function r(){return e.jsxDEV(a,{to:"/landing#access",replace:!0},void 0,!1,{fileName:"/Users/lihaopeng/IdeaProjects/memospark/frontend/src/pages/LoginPage.tsx",lineNumber:4,columnNumber:10},this)}export{r as default};

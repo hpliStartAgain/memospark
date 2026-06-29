@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layers, BookOpen, Code2, NotebookPen, BarChart3, Settings, LogOut,
-  Sun, Moon, Globe, Menu, X, LayoutDashboard, Target, CalendarRange,
+  Sun, Moon, Globe, Menu, X, LayoutDashboard, Target, CalendarRange, Shield,
 } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
@@ -36,6 +36,7 @@ export default function Layout() {
     { to: '/notebook', icon: NotebookPen,     label: t('nav.notebook') },
     { to: '/stats',    icon: BarChart3,       label: t('nav.stats') },
     { to: '/settings', icon: Settings,        label: t('nav.settings') },
+    ...(user?.role === 'ADMIN' ? [{ to: '/admin', icon: Shield, label: '后台管理' }] : []),
   ]
 
   const mobileNavItems = navItems.filter(i =>

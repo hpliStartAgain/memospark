@@ -6,6 +6,7 @@ import com.memospark.core.domain.*;
 import com.memospark.core.dto.*;
 import com.memospark.core.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudyPlanService {
@@ -50,7 +52,11 @@ public class StudyPlanService {
         List<TargetSkill> plannableSkills = skills.stream()
                 .filter(skill -> skill.getDeck() != null && cardRepository.countByDeckId(skill.getDeck().getId()) > 0)
                 .toList();
+        log.info("generate: target={}, userId={}, totalSkills={}, plannableSkills={}",
+                targetId, userId, skills.size(), plannableSkills.size());
         if (plannableSkills.isEmpty()) {
+            log.warn("generate: no plannable skills for target {} (skills={}, decks with cards=0)",
+                    targetId, skills.size());
             throw new IllegalArgumentException("请先分析 JD，并为至少一个技能准备卡片。");
         }
 
@@ -64,7 +70,10 @@ public class StudyPlanService {
         try {
             blueprint = aiService.generateStudyPlan(
                     context, weeklyHours, targetDate.toString(), language, target.getUser().getId());
+            log.info("generate: AI blueprint generated for target {}", targetId);
         } catch (RuntimeException aiError) {
+            log.warn("generate: AI failed for target {}, using fallback blueprint: {}",
+                    targetId, aiError.getMessage());
             blueprint = fallbackBlueprint(target, plannableSkills, weeklyHours, startDate, targetDate);
         }
         blueprint = normalizeBlueprint(blueprint, plannableSkills, weeklyHours, startDate, targetDate);

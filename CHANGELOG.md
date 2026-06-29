@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-06-29 — Bug 修复（生成计划静默失败）+ 后端日志增强 + Admin 后台面板
+
+### Bug 修复
+- **根因**：学习计划页点击「生成计划」按钮无反应，是因为前端 mutation 无 `onError` 回调且项目无 toast 组件，错误被静默吞掉；后端 controller/service 零日志，请求失败不可见。
+- 新增前端 Toast 通知组件（`toastStore.ts` + `Toast.tsx`），零新依赖，基于 Zustand。
+- `main.tsx` QueryClient 新增全局 mutation `onError` handler，自动提取后端错误信息并弹 toast。
+- `PlansPage.tsx` generate mutation 新增成功 toast「学习计划已生成」。
+- `GlobalExceptionHandler` 新增 `@Slf4j`，所有 400/403/404/500 异常均记录日志。
+
+### 后端日志增强
+- 新增 `RequestLoggingFilter`：记录每个 `/api/**` 请求的 method、path、status code、耗时；4xx+ 用 `log.warn`，2xx/3xx 用 `log.info`。
+- `StudyPlanController` / `StudyPlanService` 新增 `@Slf4j`，记录计划生成入参、技能数量、AI 调用结果和 fallback 路径。
+- `application.properties` 新增 `logging.level.com.memospark=DEBUG`，降低 Tomcat 请求解析噪音。
+
+### Admin 后台面板
+- 新增 Flyway `V12__admin_user_activity.sql`：`users` 表增加 `enabled` 列（封禁功能）；新建 `user_daily_activity` 表记录每日活跃用户（DAU）。
+- 新增 `UserDailyActivity` 实体 + `UserDailyActivityRepository` + `UserActivityService`。
+- `RequestLoggingFilter` 在每个认证 API 请求成功后记录用户日活（带 username→id 缓存，避免每请求 DB 查询）。
+- 新增 `AdminController`（`/api/admin/**`，受 `hasRole('ADMIN')` 保护）+ `AdminService`：
+  - 系统信息：JVM 版本、Spring Boot 版本、OS、启动时间、运行时长、堆内存、线程数、CPU 核数。
+  - 业务指标：总用户/启用用户/今日新增/今日活跃(DAU)/总牌组/总卡片/总复习/总目标/今日复习/保留率/管理员数。
+  - DAU 趋势：近 30 天每日活跃用户数和请求数。
+  - 用户管理：封禁/解封、角色升降、重置密码。
+- `UserService.loadUserByUsername` 改用 7 参数构造器，封禁用户（`enabled=false`）无法登录。
+- `User` 实体新增 `enabled` 字段（默认 `true`）。
+- `SecurityConfig` / `SpaController` 新增 `/admin/**` SPA 路由。
+- 前端新增 `AdminPage.tsx`：实例信息卡片 + 指标网格 + DAU 折线图（recharts）+ 用户管理表格（封禁/角色/重置密码）。
+- `Layout.tsx` 仅对 ADMIN 角色显示「后台管理」导航项。
+- `api.ts` 新增 `adminApi`；`types/index.ts` 新增 Admin 相关类型。
+
+### Verification
+- Passed: `frontend/ npm run build`（`tsc && vite build`，含 AdminPage 28.21 kB）。
+- Pending: 后端编译需 Java 21（本机仅 Java 17），代码已逐文件审查。
+
 ## 2026-06-28 — JD 牌组命中复用 + 问答式 AI 复习闭环
 
 - JD 技能分析改为先匹配用户已有 `CUSTOM` 牌组：综合技能名、牌组名、描述、标签和样例卡片内容打分，默认 `0.72` 以上自动复用，避免 Kubernetes/K8s 等同主题重复创建牌组。

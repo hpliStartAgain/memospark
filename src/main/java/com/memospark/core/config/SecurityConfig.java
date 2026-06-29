@@ -78,7 +78,7 @@ public class SecurityConfig {
                     "/manifest.webmanifest", "/sw.js",
                     "/dashboard/**", "/targets/**",
                     "/decks/**", "/review/**", "/practice/**", "/notebook/**",
-                    "/stats/**", "/settings/**"
+                    "/stats/**", "/settings/**", "/admin/**", "/plans/**"
                 ).permitAll()
                 // Actuator health (unauthenticated)
                 .requestMatchers("/actuator/health").permitAll()

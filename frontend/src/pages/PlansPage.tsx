@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { planApi, targetApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
+import { useToastStore } from '@/store/toastStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -37,6 +38,7 @@ export default function PlansPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { lang } = useAppStore()
+  const toast = useToastStore()
   const [weeklyHours, setWeeklyHours] = useState('7')
   const [targetDate, setTargetDate] = useState('')
   const [activeWeek, setActiveWeek] = useState(1)
@@ -73,6 +75,7 @@ export default function PlansPage() {
       qc.setQueryData(['plan', selectedId], result)
       qc.invalidateQueries({ queryKey: ['plan', 'today'] })
       setActiveWeek(1)
+      toast.success('学习计划已生成')
     },
   })
 

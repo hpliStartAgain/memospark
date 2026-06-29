@@ -1,0 +1,19 @@
+{
+  "task_id": "fix-generate-plan-bug-plus-admin-panel",
+  "tier": "COMPLEX",
+  "current_phase": "done",
+  "next_action": "在 Java 21 环境编译后端并运行测试：./mvnw test",
+  "blockers": ["本机仅 Java 17，项目需 Java 21，后端未编译验证"],
+  "do_not": [
+    "不要移除 RequestLoggingFilter 的 user_daily_activity 记录逻辑",
+    "不要修改 V12 迁移文件（已与 User 实体 enabled 字段对齐）",
+    "不要在前端引入 toast 第三方库（已用 Zustand 自建）"
+  ],
+  "last_commit": null,
+  "branch": "main",
+  "open_files": [],
+  "verified_passing": [
+    "frontend npm run build (tsc + vite build)"
+  ],
+  "todo_md": "TODO.md"
+}
