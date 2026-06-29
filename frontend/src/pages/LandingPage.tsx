@@ -77,13 +77,14 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="relative flex min-h-[82svh] items-end overflow-hidden bg-gray-950">
+      <section className="relative isolate flex min-h-[82svh] items-end overflow-hidden bg-gray-950">
         <img
           src="/memospark-workspace.png"
           alt="MemoSpark 学习计划与技能工作台"
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-45"
+          className="absolute inset-0 h-full w-full scale-125 object-cover object-[72%_center] opacity-20 md:scale-110 md:object-[76%_center] md:opacity-60"
         />
-        <div className="absolute inset-0 bg-gray-950/60" />
+        <div className="absolute inset-0 bg-gray-950/94 md:bg-[linear-gradient(90deg,#111827_0%,#111827_52%,rgba(17,24,39,0.82)_73%,rgba(17,24,39,0.62)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-gray-950/80 to-transparent" />
         <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-14 pt-28 md:px-8 md:pb-20">
           <p className="mb-5 text-sm font-medium text-emerald-300">面向目标岗位的学习系统</p>
           <h1 className="max-w-4xl text-5xl font-semibold leading-[1.04] text-white md:text-7xl">

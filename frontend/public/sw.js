@@ -3,8 +3,18 @@
 //   - API/actuator: never cached (always network, auth-sensitive)
 //   - navigations: network-first, fall back to cached index.html (offline shell)
 //   - other same-origin GET (hashed assets): stale-while-revalidate
-const CACHE = 'memospark-shell-v1'
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/favicon.svg']
+const CACHE = 'memospark-shell-v2'
+const SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/favicon-32.png',
+  '/favicon-64.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
