@@ -218,6 +218,45 @@ export function openSubmissionStream(
   return es
 }
 
+/**
+ * SSE stream for generate-cards.
+ * Events: status | chunk | complete | error
+ */
+export function openGenerateCardsStream(
+  targetId: number,
+  skillId: number,
+  lang: string,
+  callbacks: {
+    onStatus?: (msg: string) => void
+    onChunk?: (delta: string) => void
+    onComplete?: (created: number) => void
+    onError?: (msg: string) => void
+  },
+): EventSource {
+  const es = new EventSource(
+    `/api/targets/${targetId}/skills/${skillId}/generate-cards/stream?lang=${lang}`,
+    { withCredentials: true },
+  )
+  es.addEventListener('status', (e: MessageEvent) => callbacks.onStatus?.(e.data))
+  es.addEventListener('chunk', (e: MessageEvent) => callbacks.onChunk?.(e.data))
+  es.addEventListener('complete', (e: MessageEvent) => {
+    try { callbacks.onComplete?.(JSON.parse(e.data).created) } catch { callbacks.onComplete?.(0) }
+    es.close()
+  })
+  es.addEventListener('error', (e: MessageEvent) => {
+    // EventSource fires 'error' on connection close too — only treat as error if data present
+    if (e.data) {
+      callbacks.onError?.(e.data)
+    } else if (es.readyState === EventSource.CLOSED) {
+      // already closed by complete event — ignore
+    } else {
+      callbacks.onError?.('连接中断')
+    }
+    es.close()
+  })
+  return es
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────────
 export const adminApi = {
   system:  () => api.get('/admin/system').then(r => r.data),

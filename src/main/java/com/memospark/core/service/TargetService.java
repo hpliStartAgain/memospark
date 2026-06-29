@@ -174,6 +174,17 @@ public class TargetService {
         return toSkillDto(skill);
     }
 
+    /**
+     * Streaming version: AI chunks are forwarded to onChunk in real-time.
+     */
+    public int generateSkillCardsStream(Long targetId, Long skillId, Long userId, boolean admin,
+                                         String language, java.util.function.Consumer<String> onChunk) {
+        getOwned(targetId, userId, admin);
+        TargetSkill skill = getOwnedSkill(targetId, skillId);
+        return targetSkillService.generateCardsForSkill(
+                skill, (language != null && !language.isBlank()) ? language : "zh", onChunk);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private Target getOwned(Long id, Long userId, boolean admin) {

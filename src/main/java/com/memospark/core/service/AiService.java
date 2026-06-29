@@ -155,6 +155,15 @@ public class AiService {
      * Generate flashcards for a given topic.
      */
     public List<Map<String, String>> generateCards(String topic, int count, String language) {
+        return generateCards(topic, count, language, null);
+    }
+
+    /**
+     * Generate flashcards with optional streaming callback.
+     * When onChunk is provided, uses chatStream() so the caller sees AI text deltas in real-time.
+     */
+    public List<Map<String, String>> generateCards(String topic, int count, String language,
+                                                    Consumer<String> onChunk) {
         String lang = "zh".equals(language) ? "Chinese" : "English";
 
         String prompt = """
@@ -178,7 +187,7 @@ public class AiService {
                 }]
                 """.formatted(count, topic, lang);
 
-        String response = chat(prompt);
+        String response = onChunk != null ? chatStream(prompt, onChunk) : chat(prompt);
 
         try {
             return extractJsonArray(response, new TypeReference<>() {});
@@ -245,6 +254,14 @@ public class AiService {
                 ? topic
                 : deckName + " - " + topic;
         return generateCards(composed, count, language);
+    }
+
+    public List<Map<String, String>> generateCardsForTopic(String deckName, String topic, int count,
+                                                            String language, Long userId, Consumer<String> onChunk) {
+        String composed = (deckName == null || deckName.isBlank())
+                ? topic
+                : deckName + " - " + topic;
+        return generateCards(composed, count, language, userId, onChunk);
     }
 
     public AnswerEvaluationDto evaluateFlashcardAnswer(String question, String referenceAnswer, String userAnswer) {
@@ -614,6 +631,11 @@ public class AiService {
 
     public List<Map<String, String>> generateCards(String topic, int count, String language, Long userId) {
         return withUser(userId, () -> generateCards(topic, count, language));
+    }
+
+    public List<Map<String, String>> generateCards(String topic, int count, String language,
+                                                    Long userId, Consumer<String> onChunk) {
+        return withUser(userId, () -> generateCards(topic, count, language, onChunk));
     }
 
     public Map<String, Object> analyzeJds(List<String> jds, String language, Long userId) {

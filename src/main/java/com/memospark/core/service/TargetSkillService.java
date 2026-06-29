@@ -128,6 +128,33 @@ public class TargetSkillService {
      */
     @Transactional
     public int generateCardsForSkill(TargetSkill skill, String language) {
+        return generateCardsForSkill(skill, language, null);
+    }
+
+    /**
+     * Streaming version: AI text chunks are forwarded to onChunk in real-time.
+     * The AI call runs outside a transaction; only deck prep and card saving are transactional.
+     */
+    public int generateCardsForSkill(TargetSkill skill, String language, java.util.function.Consumer<String> onChunk) {
+        // Phase 1: prepare deck and count (transactional)
+        PrepareResult prep = prepareDeck(skill);
+        if (prep.count <= 0) {
+            return 0;
+        }
+
+        // Phase 2: AI call with streaming (no transaction — can take 30-60s)
+        if (onChunk != null) onChunk.accept(null); // signal: AI call starting
+        List<Map<String, String>> cards = aiService.generateCardsForTopic(
+                skill.getName(), prep.topic, prep.count, language, skill.getUser().getId(), onChunk);
+
+        // Phase 3: save cards (transactional)
+        return saveCards(prep.deck, prep.existingCount, cards, skill.getUser().getId());
+    }
+
+    private record PrepareResult(Deck deck, String topic, int count, int existingCount) {}
+
+    @Transactional
+    public PrepareResult prepareDeck(TargetSkill skill) {
         Deck deck = skill.getDeck();
         if (deck == null) {
             deck = new Deck(skill.getName(), skill.getDescription(), DeckType.CUSTOM, skill.getUser());
@@ -144,19 +171,16 @@ public class TargetSkillService {
                 targetCardCount(skill.getWeight())));
         int existingCount = (int) Math.min(Integer.MAX_VALUE, cardRepository.countByDeckId(deck.getId()));
         int count = desiredCount - existingCount;
-        if (count <= 0) {
-            return 0;
-        }
         String topic = (skill.getTopics() != null && !skill.getTopics().isBlank())
                 ? skill.getTopics().replace("\n", ", ")
                 : (skill.getDescription() != null && !skill.getDescription().isBlank())
                     ? skill.getDescription()
                     : skill.getName();
+        return new PrepareResult(deck, topic, count, existingCount);
+    }
 
-        List<Map<String, String>> cards = aiService.generateCardsForTopic(
-                skill.getName(), topic, count, language, skill.getUser().getId());
-
-        Long userId = skill.getUser().getId();
+    @Transactional
+    public int saveCards(Deck deck, int existingCount, List<Map<String, String>> cards, Long userId) {
         Set<String> existingFronts = cardRepository.findByDeckId(deck.getId()).stream()
                 .map(Card::getFront)
                 .filter(front -> front != null && !front.isBlank())

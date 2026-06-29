@@ -5,14 +5,18 @@ import com.memospark.core.config.UserPrincipal;
 import com.memospark.core.dto.*;
 import com.memospark.core.service.TargetService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/targets")
 @RequiredArgsConstructor
+@Slf4j
 public class TargetController {
 
     private final TargetService targetService;
@@ -103,6 +107,45 @@ public class TargetController {
                                              @RequestParam(defaultValue = "zh") String lang,
                                              @CurrentUser UserPrincipal principal) {
         return targetService.generateSkillCards(id, skillId, principal.id(), principal.admin(), lang);
+    }
+
+    /**
+     * SSE streaming version of generate-cards.
+     * Events: status | chunk | complete | error
+     */
+    @GetMapping(value = "/{id}/skills/{skillId}/generate-cards/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter generateSkillCardsStream(@PathVariable Long id, @PathVariable Long skillId,
+                                                @RequestParam(defaultValue = "zh") String lang,
+                                                @CurrentUser UserPrincipal principal) {
+        SseEmitter emitter = new SseEmitter(180_000L); // 3 min timeout
+        Thread.startVirtualThread(() -> {
+            try {
+                emitter.send(SseEmitter.event().name("status").data("正在准备..."));
+                int created = targetService.generateSkillCardsStream(
+                        id, skillId, principal.id(), principal.admin(), lang,
+                        chunk -> {
+                            try {
+                                if (chunk == null) {
+                                    emitter.send(SseEmitter.event().name("status").data("AI 正在生成卡片..."));
+                                } else {
+                                    emitter.send(SseEmitter.event().name("chunk").data(chunk));
+                                }
+                            } catch (Exception e) {
+                                log.debug("SSE send chunk failed", e);
+                            }
+                        });
+                emitter.send(SseEmitter.event().name("status").data("正在保存卡片..."));
+                emitter.send(SseEmitter.event().name("complete").data("{\"created\":" + created + "}"));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("Streaming generate-cards failed", e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                } catch (Exception ignored) {}
+                emitter.completeWithError(e);
+            }
+        });
+        return emitter;
     }
 
     @GetMapping("/{id}/readiness")

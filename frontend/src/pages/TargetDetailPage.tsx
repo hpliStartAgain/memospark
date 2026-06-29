@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { targetApi } from '@/lib/api'
+import { targetApi, openGenerateCardsStream } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
+import { useToastStore } from '@/store/toastStore'
 import { PageSpinner } from '@/components/ui/Spinner'
 import Card, { CardBody, CardHeader } from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils'
 import type { TargetDetail, TargetSkill, JobJd } from '@/types'
 import {
   ArrowLeft, Plus, Trash2, Sparkles, Building2, CalendarClock,
-  FileText, Lightbulb, BookOpen, ChevronDown, ChevronUp, CalendarRange,
+  FileText, Lightbulb, BookOpen, ChevronDown, ChevronUp, CalendarRange, Loader2,
 } from 'lucide-react'
 
 function countdownText(days?: number) {
@@ -42,10 +43,35 @@ function SkillRow({ skill, targetId }: { skill: TargetSkill; targetId: number })
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { lang } = useAppStore()
-  const genMut = useMutation({
-    mutationFn: () => targetApi.generateSkillCards(targetId, skill.id, lang),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['target', String(targetId)] }),
-  })
+  const toast = useToastStore()
+  const [genStatus, setGenStatus] = useState<string | null>(null)
+  const [genPreview, setGenPreview] = useState('')
+  const [genRunning, setGenRunning] = useState(false)
+  const esRef = useRef<EventSource | null>(null)
+
+  const startGenerate = useCallback(() => {
+    setGenRunning(true)
+    setGenStatus('正在准备...')
+    setGenPreview('')
+    esRef.current = openGenerateCardsStream(targetId, skill.id, lang, {
+      onStatus: (msg) => setGenStatus(msg),
+      onChunk: (delta) => setGenPreview(prev => (prev + delta).slice(-200)),
+      onComplete: (created) => {
+        setGenRunning(false)
+        setGenStatus(null)
+        setGenPreview('')
+        qc.invalidateQueries({ queryKey: ['target', String(targetId)] })
+        toast.success(`已生成 ${created} 张卡片`)
+      },
+      onError: (msg) => {
+        setGenRunning(false)
+        setGenStatus(null)
+        setGenPreview('')
+        toast.error(`生成失败：${msg}`)
+      },
+    })
+  }, [targetId, skill.id, lang, qc, toast])
+
   const updateMut = useMutation({
     mutationFn: (body: object) => targetApi.updateSkill(targetId, skill.id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['target', String(targetId)] }),
@@ -114,13 +140,23 @@ function SkillRow({ skill, targetId }: { skill: TargetSkill; targetId: number })
         ) : (
           <span className="text-xs text-gray-400">还没有卡片，AI 可按 JD 生成</span>
         )}
-        {skill.cardCount === 0 && (
-          <Button size="sm" variant="secondary" onClick={() => genMut.mutate()} loading={genMut.isPending}>
+        {skill.cardCount === 0 && !genRunning && (
+          <Button size="sm" variant="secondary" onClick={startGenerate}>
             <Sparkles className="w-3.5 h-3.5" />生成卡片
           </Button>
         )}
+        {genRunning && (
+          <div className="flex items-center gap-2 text-xs text-primary-600">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>{genStatus}</span>
+          </div>
+        )}
       </div>
-      {genMut.isError && <p className="text-xs text-red-500">生成失败，请确认已配置 AI Key 后重试。</p>}
+      {genRunning && genPreview && (
+        <div className="text-xs text-gray-400 dark:text-gray-500 font-mono bg-gray-50 dark:bg-gray-800/50 rounded p-2 max-h-20 overflow-hidden">
+          {genPreview}
+        </div>
+      )}
     </div>
   )
 }
@@ -161,6 +197,7 @@ export default function TargetDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { lang } = useAppStore()
+  const toast = useToastStore()
 
   const [jdOpen, setJdOpen] = useState(false)
   const [jdForm, setJdForm] = useState({ title: '', content: '', source: '' })
@@ -168,6 +205,7 @@ export default function TargetDetailPage() {
   const [skillForm, setSkillForm] = useState({ name: '', description: '', weight: '3' })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [genAllRunning, setGenAllRunning] = useState(false)
+  const [genAllStatus, setGenAllStatus] = useState('')
 
   const { data: target, isLoading } = useQuery<TargetDetail>({
     queryKey: ['target', String(targetId)],
@@ -204,14 +242,26 @@ export default function TargetDetailPage() {
   const r = target.readiness
 
   const genAll = async () => {
+    const skills = target.skills.filter(sk => sk.cardCount === 0)
+    if (skills.length === 0) return
     setGenAllRunning(true)
+    setGenAllStatus(`正在生成 1/${skills.length}：${skills[0].name}`)
     try {
-      for (const s of target.skills.filter(sk => sk.cardCount === 0)) {
-        try { await targetApi.generateSkillCards(targetId, s.id, lang) } catch { /* skip failures, keep going */ }
+      for (let i = 0; i < skills.length; i++) {
+        const s = skills[i]
+        setGenAllStatus(`正在生成 ${i + 1}/${skills.length}：${s.name}`)
+        await new Promise<void>((resolve) => {
+          openGenerateCardsStream(targetId, s.id, lang, {
+            onComplete: () => resolve(),
+            onError: () => resolve(), // skip failures, keep going
+          })
+        })
       }
       await qc.invalidateQueries({ queryKey: ['target', String(targetId)] })
+      toast.success(`全部完成，已生成 ${skills.length} 个技能的卡片`)
     } finally {
       setGenAllRunning(false)
+      setGenAllStatus('')
     }
   }
 
@@ -294,11 +344,14 @@ export default function TargetDetailPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Lightbulb className="w-4 h-4" />技能需求与掌握度（{target.skills.length}）
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {target.skills.some(s => s.cardCount === 0) && (
               <Button size="sm" onClick={genAll} loading={genAllRunning}>
                 <Sparkles className="w-3.5 h-3.5" />一键生成全部
               </Button>
+            )}
+            {genAllRunning && genAllStatus && (
+              <span className="text-xs text-primary-600 animate-pulse">{genAllStatus}</span>
             )}
             <Button size="sm" variant="secondary" onClick={() => setSkillOpen(true)}>
               <Plus className="w-3.5 h-3.5" />手动添加
