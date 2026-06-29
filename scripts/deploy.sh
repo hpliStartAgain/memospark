@@ -66,19 +66,19 @@ cp -p "$preserved_env" "$APP_DIR/.env"
 cd "$APP_DIR"
 
 docker compose -f "$COMPOSE_FILE" config >/dev/null
-docker compose -f "$COMPOSE_FILE" build app
-docker compose -f "$COMPOSE_FILE" up -d --remove-orphans app
+docker compose -f "$COMPOSE_FILE" build
+docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 
 # Health check: app port is not mapped to host (nginx is the front door),
 # so check inside the container via docker compose exec.
 for _ in $(seq 1 40); do
   if docker compose -f "$COMPOSE_FILE" exec -T app \
       curl -fsS http://127.0.0.1:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
-    docker compose -f "$COMPOSE_FILE" ps app
+    docker compose -f "$COMPOSE_FILE" ps
     exit 0
   fi
   sleep 3
 done
 
-docker compose -f "$COMPOSE_FILE" logs --tail=200 app >&2
+docker compose -f "$COMPOSE_FILE" logs --tail=200 >&2
 exit 1
