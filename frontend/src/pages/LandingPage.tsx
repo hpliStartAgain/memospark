@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowDown, ArrowRight, CalendarRange, Check, Compass, Layers3,
-  RefreshCcw, Sparkles, Zap,
+  RefreshCcw, Sparkles,
 } from 'lucide-react'
 import AccessPanel from '@/components/AccessPanel'
 import { useAppStore } from '@/store/appStore'
@@ -55,42 +55,40 @@ export default function LandingPage() {
         scrolled ? 'border-gray-200 bg-white/95 backdrop-blur' : 'border-transparent bg-transparent'
       }`}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:px-8">
-          <Link to="/landing" className={`flex items-center gap-2 font-semibold ${scrolled ? 'text-gray-950' : 'text-white'}`}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#c65f3f]">
-              <Zap className="h-4 w-4 text-white" />
-            </span>
+          <Link to="/landing" className="flex items-center gap-2 font-semibold text-gray-950">
+            <img src="/icon-192.png" alt="" className="h-8 w-8 rounded-md shadow-sm" />
             MemoSpark
           </Link>
-          <nav className={`hidden items-center gap-6 text-sm md:flex ${scrolled ? 'text-gray-600' : 'text-gray-200'}`}>
+          <nav className={`hidden items-center gap-6 text-sm md:flex ${scrolled ? 'text-gray-600' : 'text-gray-700'}`}>
             <a href="#method" className="hover:text-[#c65f3f]">工作方式</a>
             <a href="#learning" className="hover:text-[#c65f3f]">学习闭环</a>
           </nav>
           {user ? (
-            <Link to="/" className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-950">
+            <Link to="/" className="rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white">
               进入工作台
             </Link>
           ) : (
-            <a href="#access" className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-950">
+            <a href="#access" className="rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white">
               登录
             </a>
           )}
         </div>
       </header>
 
-      <section className="relative isolate flex min-h-[82svh] items-end overflow-hidden bg-gray-950">
+      <section className="relative isolate flex min-h-[82svh] items-end overflow-hidden bg-[#f7f8f7]">
         <img
           src="/memospark-workspace.png"
           alt="MemoSpark 学习计划与技能工作台"
-          className="absolute inset-0 h-full w-full scale-125 object-cover object-[72%_center] opacity-20 md:scale-110 md:object-[76%_center] md:opacity-60"
+          className="absolute inset-0 h-full w-full scale-125 object-cover object-[82%_center] opacity-15 md:scale-110 md:object-[78%_center] md:opacity-100"
         />
-        <div className="absolute inset-0 bg-gray-950/94 md:bg-[linear-gradient(90deg,#111827_0%,#111827_52%,rgba(17,24,39,0.82)_73%,rgba(17,24,39,0.62)_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-gray-950/80 to-transparent" />
+        <div className="absolute inset-0 bg-[#f7f8f7]/92 md:bg-[linear-gradient(90deg,#f7f8f7_0%,#f7f8f7_52%,rgba(247,248,247,0.86)_70%,rgba(247,248,247,0.48)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-white to-transparent" />
         <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-14 pt-28 md:px-8 md:pb-20">
-          <p className="mb-5 text-sm font-medium text-emerald-300">面向目标岗位的学习系统</p>
-          <h1 className="max-w-4xl text-5xl font-semibold leading-[1.04] text-white md:text-7xl">
+          <p className="mb-5 text-sm font-semibold text-emerald-700">面向目标岗位的学习系统</p>
+          <h1 className="max-w-4xl text-5xl font-semibold leading-[1.04] text-gray-950 md:text-7xl">
             MemoSpark
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-200 md:text-xl">
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-700 md:text-xl">
             把一份 JD 变成长期路线、每周目标和今天该学的内容。
             卡片、复习和反馈围绕同一个目标持续更新。
           </p>
@@ -98,11 +96,11 @@ export default function LandingPage() {
             <a href="#method" className="inline-flex items-center gap-2 rounded-md bg-[#c65f3f] px-5 py-3 text-sm font-semibold text-white hover:bg-[#a94e33]">
               看它如何工作 <ArrowDown className="h-4 w-4" />
             </a>
-            <a href="#access" className="inline-flex items-center gap-2 rounded-md border border-white/50 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10">
+            <a href="#access" className="inline-flex items-center gap-2 rounded-md border border-gray-400 px-5 py-3 text-sm font-semibold text-gray-950 hover:bg-white">
               直接开始 <ArrowRight className="h-4 w-4" />
             </a>
           </div>
-          <div className="mt-12 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 border-t border-white/25 pt-5 text-xs text-gray-300 md:grid-cols-4">
+          <div className="mt-12 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 border-t border-gray-300 pt-5 text-xs font-medium text-gray-600 md:grid-cols-4">
             <span>JD 作为事实源</span>
             <span>阶段化卡片</span>
             <span>滚动四周计划</span>

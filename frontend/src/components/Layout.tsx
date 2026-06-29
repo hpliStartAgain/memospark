@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layers, BookOpen, Code2, NotebookPen, BarChart3, Settings, LogOut,
-  Sun, Moon, Globe, Zap, Menu, X, LayoutDashboard, Target, CalendarRange,
+  Sun, Moon, Globe, Menu, X, LayoutDashboard, Target, CalendarRange,
 } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useAppStore } from '@/store/appStore'
@@ -46,9 +46,7 @@ export default function Layout() {
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-800/70">
         <div className="flex items-center gap-2">
-          <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-sm">
-            <Zap className="w-4 h-4 text-white" />
-          </span>
+          <img src="/icon-192.png" alt="" className="h-7 w-7 rounded-lg shadow-sm" />
           <span className="font-bold text-gray-900 dark:text-white">MemoSpark</span>
         </div>
         <button
@@ -75,9 +73,7 @@ export default function Layout() {
         {/* Logo + close (mobile) */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md">
-              <Zap className="w-4.5 h-4.5 text-white" />
-            </span>
+            <img src="/icon-192.png" alt="" className="h-8 w-8 rounded-xl shadow-md" />
             <span className="text-lg font-bold text-gray-900 dark:text-white">MemoSpark</span>
           </div>
           <button

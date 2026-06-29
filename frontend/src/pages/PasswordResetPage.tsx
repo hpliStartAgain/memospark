@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Zap, ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -59,9 +59,7 @@ export default function PasswordResetPage() {
     <div className="min-h-screen flex items-center justify-center bg-background-light dark:from-gray-950 dark:to-gray-900 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-600 mb-4">
-            <Zap className="w-8 h-8 text-white" />
-          </div>
+          <img src="/icon-192.png" alt="" className="mx-auto mb-4 h-14 w-14 rounded-2xl shadow-lg" />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">MemoSpark</h1>
         </div>
 
