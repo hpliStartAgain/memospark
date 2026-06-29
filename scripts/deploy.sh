@@ -69,8 +69,11 @@ docker compose -f "$COMPOSE_FILE" config >/dev/null
 docker compose -f "$COMPOSE_FILE" build app
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans app
 
+# Health check: app port is not mapped to host (nginx is the front door),
+# so check inside the container via docker compose exec.
 for _ in $(seq 1 40); do
-  if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
+  if docker compose -f "$COMPOSE_FILE" exec -T app \
+      curl -fsS http://127.0.0.1:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
     docker compose -f "$COMPOSE_FILE" ps app
     exit 0
   fi
