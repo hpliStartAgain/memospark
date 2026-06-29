@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,22 +23,26 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Logs every API request (method, path, status, duration) and records
  * daily user activity for DAU metrics.
+ *
+ * Dependencies are injected via {@link ObjectProvider} so the filter can be
+ * instantiated in web-slice tests (@WebMvcTest) where service/repository
+ * beans are not on the classpath — activity recording is simply skipped.
  */
 @Component
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
-    private final UserActivityService userActivityService;
-    private final UserRepository userRepository;
+    private final ObjectProvider<UserActivityService> userActivityServiceProvider;
+    private final ObjectProvider<UserRepository> userRepositoryProvider;
 
     // Lightweight username→id cache to avoid a DB hit on every request.
     private final ConcurrentHashMap<String, Long> userIdCache = new ConcurrentHashMap<>();
 
-    public RequestLoggingFilter(UserActivityService userActivityService,
-                                UserRepository userRepository) {
-        this.userActivityService = userActivityService;
-        this.userRepository = userRepository;
+    public RequestLoggingFilter(ObjectProvider<UserActivityService> userActivityServiceProvider,
+                                ObjectProvider<UserRepository> userRepositoryProvider) {
+        this.userActivityServiceProvider = userActivityServiceProvider;
+        this.userRepositoryProvider = userRepositoryProvider;
     }
 
     @Override
@@ -73,6 +78,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     private void recordDailyActivity() {
+        UserActivityService userActivityService = userActivityServiceProvider.getIfAvailable();
+        UserRepository userRepository = userRepositoryProvider.getIfAvailable();
+        if (userActivityService == null || userRepository == null) {
+            return;
+        }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             return;
