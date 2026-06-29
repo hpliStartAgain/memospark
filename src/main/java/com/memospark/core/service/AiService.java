@@ -155,7 +155,7 @@ public class AiService {
      * Generate flashcards for a given topic.
      */
     public List<Map<String, String>> generateCards(String topic, int count, String language) {
-        return generateCards(topic, count, language, null);
+        return generateCards(topic, count, language, (Consumer<String>) null);
     }
 
     /**
