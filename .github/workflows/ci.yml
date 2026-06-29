@@ -77,6 +77,11 @@ jobs:
           chmod 600 ~/.ssh/memospark_deploy
           ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      - name: Package deployment artifact
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output="/tmp/memospark-${{ github.sha }}.tar.gz" HEAD
+
       - name: Deploy to production host
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -85,6 +90,10 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          ARTIFACT="/tmp/memospark-${{ github.sha }}.tar.gz"
+          REMOTE_ARTIFACT="/tmp/memospark-${{ github.sha }}.tar.gz"
+
+          scp -i ~/.ssh/memospark_deploy -P "$DEPLOY_PORT" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:$REMOTE_ARTIFACT"
           ssh -i ~/.ssh/memospark_deploy -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "APP_DIR=/opt/memospark REPO_URL=https://github.com/${{ github.repository }}.git BRANCH=${{ github.ref_name }} bash -s" \
+            "APP_DIR=/opt/memospark ARTIFACT=$REMOTE_ARTIFACT bash -s" \
             < scripts/deploy.sh

@@ -2,9 +2,8 @@
 set -Eeuo pipefail
 
 APP_DIR="${APP_DIR:-/opt/memospark}"
-REPO_URL="${REPO_URL:-https://github.com/hpliStartAgain/memospark.git}"
-BRANCH="${BRANCH:-main}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+ARTIFACT="${ARTIFACT:-}"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -13,31 +12,58 @@ require_cmd() {
   fi
 }
 
-require_cmd git
 require_cmd docker
 require_cmd curl
+require_cmd tar
+
+case "$APP_DIR" in
+  "" | "/")
+    echo "Refusing to deploy to unsafe APP_DIR: $APP_DIR" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$APP_DIR"
 
-if [ ! -d "$APP_DIR/.git" ]; then
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "$tmp_dir"' EXIT
-  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$tmp_dir/repo"
-  cp -a "$tmp_dir/repo/." "$APP_DIR/"
-else
-  cd "$APP_DIR"
-  git remote set-url origin "$REPO_URL"
-  git fetch --prune origin "$BRANCH"
-  git checkout -B "$BRANCH" "origin/$BRANCH"
-  git reset --hard "origin/$BRANCH"
-fi
-
-cd "$APP_DIR"
-
-if [ ! -f .env ]; then
+if [ ! -f "$APP_DIR/.env" ]; then
   echo "Missing $APP_DIR/.env. Create it from .env.production.example before deploying." >&2
   exit 2
 fi
+
+if [ -z "$ARTIFACT" ]; then
+  echo "Missing ARTIFACT path. Upload a deployment tarball before running this script." >&2
+  exit 2
+fi
+
+if [ ! -f "$ARTIFACT" ]; then
+  echo "Missing deployment artifact: $ARTIFACT" >&2
+  exit 2
+fi
+
+tmp_dir="$(mktemp -d)"
+release_dir="$tmp_dir/release"
+preserved_env="$tmp_dir/.env"
+trap 'rm -rf "$tmp_dir"; rm -f "$ARTIFACT"' EXIT
+
+mkdir -p "$release_dir"
+tar -xzf "$ARTIFACT" -C "$release_dir"
+
+if [ ! -f "$release_dir/$COMPOSE_FILE" ]; then
+  echo "Deployment artifact does not contain $COMPOSE_FILE." >&2
+  exit 2
+fi
+
+if [ ! -f "$release_dir/Dockerfile" ]; then
+  echo "Deployment artifact does not contain Dockerfile." >&2
+  exit 2
+fi
+
+cp -p "$APP_DIR/.env" "$preserved_env"
+find "$APP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+cp -a "$release_dir/." "$APP_DIR/"
+cp -p "$preserved_env" "$APP_DIR/.env"
+
+cd "$APP_DIR"
 
 docker compose -f "$COMPOSE_FILE" config >/dev/null
 docker compose -f "$COMPOSE_FILE" build app
